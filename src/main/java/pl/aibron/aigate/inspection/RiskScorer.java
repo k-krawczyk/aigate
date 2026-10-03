@@ -7,7 +7,8 @@ import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
 /**
- * Soft signals of prompt injection. None of them is proof on its own, so they are combined into a 0..1 risk score
+ * Soft signals of prompt injection and of harmful intent. None of them is proof on its own, so they are combined
+ * into a 0..1 risk score
  * (noisy-OR: 1 - product of (1 - weight)). The profile decides which score goes straight to block and which goes
  * to the guard models for a second opinion.
  */
@@ -47,6 +48,14 @@ public class RiskScorer {
                     "!\\[[^\\]]*\\]\\(https?://[^)\\s]+\\?[^)\\s]*=")),
             new Rule("obfuscation.base64_blob", 0.3, Pattern.compile("[A-Za-z0-9+/]{60,}={0,2}")),
             new Rule("obfuscation.invisible_chars", 0.4, Pattern.compile("[\\u200B-\\u200F\\u2060-\\u2064\\uFEFF\\u202A-\\u202E\\x{E0000}-\\x{E007F}]")),
+            // Harmful-intent cues carry no injection meaning; their job is to send the request to Llama Guard on
+            // profiles that otherwise skip the guards.
+            new Rule("intent.concealment", 0.35, Pattern.compile(
+                    "(?i)\\b(without (him|her|them|anyone|my \\w+|the \\w+) (noticing|knowing|finding out)|without being (noticed|detected|caught)|undetected|avoid(ing)? detection|so (that )?(the )?[\\w ]{0,30}(will not|won't|cannot|can't|doesn't|does not) (spot|notice|detect|find out|see)( it)?)\\b")),
+            new Rule("intent.credential_harvest", 0.35, Pattern.compile(
+                    "(?i)\\b(convincing|legit(imate)?[- ]looking|official[- ]looking)\\b.{0,60}\\b(message|email|e-mail|sms|page|site)\\b.{0,80}\\b(login|log in|password|credentials|card (number|details)|pin|confirm)")),
+            new Rule("intent.account_takeover", 0.35, Pattern.compile(
+                    "(?i)\\b(get|break|hack|log) ?(into|in to)\\b.{0,40}\\b(someone('s)?|his|her|their|my ex|ex-\\w+'s|another person's)\\b.{0,30}\\b(account|email|phone|inbox)")),
             new Rule("roleplay.hypothetical", 0.15, Pattern.compile(
                     "(?i)\\b(hypothetically|in a fictional (world|story)|for a novel|let'?s play a game)\\b")));
 

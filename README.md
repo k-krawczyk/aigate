@@ -60,6 +60,10 @@ docker compose --profile test run --rm tests  # no JDK needed either
 
 GitHub Actions runs the suite on every push.
 
+### Live evaluation with real models
+
+`python3 demo/evaluate.py` replays the request-side cases of the team corpus against a running gateway with the real guard models and prints the confusion table. Latest run (demo-agent, balanced profile): 49 of 49 decided as expected, including the five semantic cases where only the guard models can tell a harmful request ("move client funds so compliance will not spot it") from a legitimate one ("what controls help compliance detect unusual fund movements"). Answer-side and tool-call cases need a scripted model and run in `ThreatCorpusTest`: 54 of 54.
+
 ## Architecture
 
 ```mermaid
