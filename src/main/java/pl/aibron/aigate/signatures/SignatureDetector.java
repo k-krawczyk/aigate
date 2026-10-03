@@ -36,7 +36,8 @@ public class SignatureDetector implements Detector {
         var findings = new ArrayList<Finding>();
         for (var compiled : feed.current().signatures()) {
             var matcher = compiled.pattern().matcher(text);
-            if (matcher.find()) {
+            // Every occurrence, not only the first: with on_signature_match: redact a second copy must not survive.
+            while (matcher.find()) {
                 var s = compiled.signature();
                 findings.add(new Finding("signature." + s.id(), FindingKind.SIGNATURE, s.id(), matcher.start(),
                         matcher.end(), s.category(), s.owasp()));
