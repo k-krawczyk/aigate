@@ -14,10 +14,13 @@ public class ChatCompletionsRoute extends RouteBuilder {
 
     private final GatewayPipeline pipeline;
     private final ContentInspection contentInspection;
+    private final ResponseInspection responseInspection;
 
-    public ChatCompletionsRoute(GatewayPipeline pipeline, ContentInspection contentInspection) {
+    public ChatCompletionsRoute(GatewayPipeline pipeline, ContentInspection contentInspection,
+                                ResponseInspection responseInspection) {
         this.pipeline = pipeline;
         this.contentInspection = contentInspection;
+        this.responseInspection = responseInspection;
     }
 
     @Override
@@ -42,6 +45,7 @@ public class ChatCompletionsRoute extends RouteBuilder {
                 .process(GatewayPipeline.startStep("upstream"))
                 .to("direct:upstream")
                 .process(GatewayPipeline.endStep("upstream"))
+                .process(timed("response_rules", responseInspection::inspectResponse))
                 .setHeader("X-AIGate-Request-Id", exchangeProperty(ExchangeKeys.REQUEST_ID))
                 .wireTap("direct:audit");
 

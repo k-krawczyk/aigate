@@ -18,6 +18,7 @@ public final class ExchangeKeys {
     public static final String CATEGORY = "aigate.category";
     public static final String OWASP = "aigate.owasp";
     public static final String DIRECTION = "aigate.direction";
+    public static final String CANARY = "aigate.canary";
 
     private ExchangeKeys() {
     }

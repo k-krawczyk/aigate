@@ -26,9 +26,13 @@ public class ContentInspection {
     private static final int EXCERPT_LENGTH = 300;
 
     private final TextInspector inspector;
+    private final ToolGovernance tools;
+    private final SystemPromptGuard promptGuard;
 
-    public ContentInspection(TextInspector inspector) {
+    public ContentInspection(TextInspector inspector, ToolGovernance tools, SystemPromptGuard promptGuard) {
         this.inspector = inspector;
+        this.tools = tools;
+        this.promptGuard = promptGuard;
     }
 
     public void inspectRequest(Exchange exchange) {
@@ -36,6 +40,14 @@ public class ContentInspection {
         var client = exchange.getProperty(ExchangeKeys.CLIENT, ClientSpec.class);
         var request = exchange.getProperty(ExchangeKeys.REQUEST, ObjectNode.class);
         var profile = policy.profileOf(client);
+
+        var toolViolation = tools.checkRequest(request, client.tools());
+        if (toolViolation.isPresent()) {
+            var v = toolViolation.get();
+            exchange.setProperty(ExchangeKeys.FINDINGS, List.of(new Finding(v.rule(), v.kind(), v.kind().category(), 0, 0)));
+            markDecision(exchange, Decision.BLOCK, v.kind(), "request");
+            throw new GatewayRejection(403, "tool_not_allowed", v.kind().category(), v.message());
+        }
 
         var texts = MessageText.ofRequest(request);
         var allFindings = new ArrayList<Finding>();
@@ -79,6 +91,7 @@ public class ContentInspection {
         } else {
             exchange.setProperty(ExchangeKeys.DECISION, Decision.ALLOW);
         }
+        exchange.setProperty(ExchangeKeys.CANARY, promptGuard.plant(request));
         exchange.getMessage().setBody(request.toString());
     }
 
@@ -94,7 +107,7 @@ public class ContentInspection {
             case PII -> profile.onPii();
             case SECRET -> profile.onSecret();
             case SIGNATURE -> profile.onSignatureMatch();
-            case TOOL -> Action.BLOCK;
+            case TOOL, TOOL_ARGUMENT, PROMPT_LEAK -> Action.BLOCK;
         };
     }
 

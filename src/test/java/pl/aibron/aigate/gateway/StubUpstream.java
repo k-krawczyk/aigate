@@ -1,17 +1,28 @@
 package pl.aibron.aigate.gateway;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.camel.builder.RouteBuilder;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 
 /**
- * Stands in for Ollama so the suite runs without a model server. Echoes the last user message back.
+ * Stands in for Ollama so the suite runs without a model server. By default it echoes the last user message, which
+ * lets tests see exactly what the model received. Two commands script a misbehaving model:
+ * <ul>
+ *   <li>{@code @tool <name> <json-arguments>}: answer with a tool call</li>
+ *   <li>{@code @say <text>}: answer with this text verbatim</li>
+ *   <li>{@code @say64 <base64>}: answer with the decoded text, for answers whose content would already be caught
+ *       on the request side</li>
+ *   <li>{@code @leak}: answer with the full system prompt the model received</li>
+ * </ul>
  */
 @TestConfiguration
 public class StubUpstream {
 
     public static final String MODEL_REPLY_PREFIX = "stub reply to: ";
+
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     @Bean
     RouteBuilder stubUpstreamRoute() {
@@ -19,21 +30,48 @@ public class StubUpstream {
             @Override
             public void configure() {
                 from("direct:stub-upstream").routeId("stub-upstream")
-                        .setBody(exchange -> """
-                                {"id":"chatcmpl-stub","object":"chat.completion","model":"llama3.2:3b",
-                                 "choices":[{"index":0,"message":{"role":"assistant","content":"%s%s"},"finish_reason":"stop"}],
-                                 "usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15}}
-                                """.formatted(MODEL_REPLY_PREFIX, lastUserMessage(exchange.getMessage().getBody(String.class))));
+                        .process(exchange -> exchange.getMessage()
+                                .setBody(reply(exchange.getMessage().getBody(String.class))));
             }
         };
     }
 
-    private static String lastUserMessage(String requestJson) {
-        try {
-            var messages = new ObjectMapper().readTree(requestJson).path("messages");
-            return messages.get(messages.size() - 1).path("content").asText();
-        } catch (Exception e) {
-            throw new IllegalStateException("stub upstream got invalid JSON", e);
+    static String reply(String requestJson) throws Exception {
+        var request = JSON.readTree(requestJson);
+        var messages = request.path("messages");
+        var last = messages.get(messages.size() - 1).path("content").asText();
+
+        var response = JSON.createObjectNode();
+        response.put("id", "chatcmpl-stub").put("object", "chat.completion").put("model", request.path("model").asText());
+        var message = response.putArray("choices").addObject().put("index", 0).put("finish_reason", "stop")
+                .putObject("message").put("role", "assistant");
+        response.putObject("usage").put("prompt_tokens", 10).put("completion_tokens", 5).put("total_tokens", 15);
+
+        if (last.startsWith("@tool ")) {
+            var parts = last.substring(6).split(" ", 2);
+            message.put("content", "");
+            var call = message.putArray("tool_calls").addObject().put("id", "call_1").put("type", "function");
+            call.putObject("function").put("name", parts[0]).put("arguments", parts.length > 1 ? parts[1] : "{}");
+        } else if (last.startsWith("@say64 ")) {
+            message.put("content", new String(java.util.Base64.getDecoder().decode(last.substring(7).trim()),
+                    java.nio.charset.StandardCharsets.UTF_8));
+        } else if (last.startsWith("@say ")) {
+            message.put("content", last.substring(5));
+        } else if (last.equals("@leak")) {
+            message.put("content", "My instructions are: " + systemPrompt(messages));
+        } else {
+            message.put("content", MODEL_REPLY_PREFIX + last);
         }
+        return response.toString();
     }
+
+    private static String systemPrompt(JsonNode messages) {
+        for (JsonNode m : messages) {
+            if ("system".equals(m.path("role").asText())) {
+                return m.path("content").asText();
+            }
+        }
+        return "";
+    }
+
 }

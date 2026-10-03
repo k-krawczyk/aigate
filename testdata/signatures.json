@@ -1,0 +1,110 @@
+{
+  "version": "2026-10-03",
+  "source": "bundled sample feed",
+  "signatures": [
+    {
+      "id": "SIG-INJ-001",
+      "name": "Instruction override",
+      "category": "prompt_injection",
+      "pattern": "(?i)ignore\\s+(all\\s+)?(the\\s+)?(previous|prior|above)\\s+instructions",
+      "owasp": "LLM01",
+      "action": "block"
+    },
+    {
+      "id": "SIG-INJ-002",
+      "name": "System prompt extraction",
+      "category": "prompt_injection",
+      "pattern": "(?i)(reveal|print|show|repeat)\\s+(your\\s+|the\\s+)?(hidden\\s+|system\\s+)(prompt|instructions)",
+      "owasp": "LLM01",
+      "action": "block"
+    },
+    {
+      "id": "SIG-INJ-003",
+      "name": "DAN-style persona jailbreak",
+      "category": "prompt_injection",
+      "pattern": "(?i)\\b(DAN mode|you are now DAN|no restrictions)\\b",
+      "owasp": "LLM01",
+      "action": "block"
+    },
+    {
+      "id": "SIG-INJ-004",
+      "name": "Fake system or admin message",
+      "category": "prompt_injection",
+      "pattern": "(?i)^\\s*(system|administrator)\\s*:\\s*.*(disabled|override|without filtering)",
+      "owasp": "LLM01",
+      "action": "block"
+    },
+    {
+      "id": "SIG-INJ-005",
+      "name": "Hidden instruction in HTML comment",
+      "category": "prompt_injection",
+      "pattern": "(?i)<!--\\s*(assistant|system)\\s*:",
+      "owasp": "LLM01",
+      "action": "block"
+    },
+    {
+      "id": "SIG-INJ-006",
+      "name": "Instruction override (Polish)",
+      "category": "prompt_injection",
+      "pattern": "(?i)zignoruj\\s+(wszystkie\\s+)?(poprzednie|wcze[sś]niejsze)\\s+(instrukcje|polecenia)",
+      "owasp": "LLM01",
+      "action": "block"
+    },
+    {
+      "id": "SIG-DES-001",
+      "name": "Serialized Java object (base64)",
+      "category": "unsafe_deserialization",
+      "pattern": "rO0AB[A-Za-z0-9+/]{6,}",
+      "owasp": "LLM03",
+      "action": "block"
+    },
+    {
+      "id": "SIG-DES-002",
+      "name": "Serialized Java object (hex magic)",
+      "category": "unsafe_deserialization",
+      "pattern": "(?i)\\baced0005",
+      "owasp": "LLM03",
+      "action": "block"
+    },
+    {
+      "id": "SIG-DES-003",
+      "name": "YAML code-execution tag",
+      "category": "unsafe_deserialization",
+      "pattern": "!!python/object(/apply|/new)?:",
+      "owasp": "LLM03",
+      "action": "block"
+    },
+    {
+      "id": "SIG-DES-004",
+      "name": "JNDI lookup string",
+      "category": "unsafe_deserialization",
+      "pattern": "(?i)\\$\\{jndi:(ldap|rmi|dns)s?://",
+      "owasp": "LLM03",
+      "action": "block"
+    },
+    {
+      "id": "SIG-SUP-001",
+      "name": "Remote code enabled when loading a model",
+      "category": "model_supply_chain",
+      "pattern": "trust_remote_code\\s*=\\s*True",
+      "owasp": "LLM03",
+      "action": "block"
+    },
+    {
+      "id": "SIG-SUP-002",
+      "name": "Unsafe pickle-based model load",
+      "category": "model_supply_chain",
+      "pattern": "weights_only\\s*=\\s*False|pickle\\.loads?\\(",
+      "owasp": "LLM03",
+      "action": "block"
+    },
+    {
+      "id": "SIG-SUP-003",
+      "name": "Model file fetched over plain URL",
+      "category": "model_supply_chain",
+      "pattern": "(?i)https?://\\S+\\.(pkl|pickle|pt|bin)\\b",
+      "owasp": "LLM03",
+      "action": "block"
+    }
+  ]
+}
