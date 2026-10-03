@@ -52,3 +52,8 @@ management:
     web:
       exposure:
         include: health,info,metrics,prometheus
+
+logging:
+  level:
+    # The Kafka client logs its full configuration on every producer start.
+    org.apache.kafka: WARN

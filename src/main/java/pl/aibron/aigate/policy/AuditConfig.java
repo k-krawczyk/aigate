@@ -10,7 +10,10 @@ public record AuditConfig(List<SinkSpec> sinks) {
 
     public static final AuditConfig NONE = new AuditConfig(List.of());
 
-    public enum SinkType { SYSLOG, SPLUNK_HEC }
+    public enum SinkType { SYSLOG, SPLUNK_HEC, KAFKA }
+
+    /** Kafka record key: keeps one client's events ordered on one partition by default. */
+    public enum KafkaKey { CLIENT_ID, EVENT_TYPE, NONE }
 
     public enum Protocol { UDP, TCP }
 
@@ -18,9 +21,12 @@ public record AuditConfig(List<SinkSpec> sinks) {
 
     /**
      * @param tokenEnv name of the environment variable holding the Splunk HEC token; secrets stay out of the policy
+     * @param saslPasswordEnv name of the environment variable holding the Kafka SASL password, same reason
      */
     public record SinkSpec(SinkType type, String name, Boolean enabled, String host, Integer port, Protocol protocol,
-                           Format format, String url, String tokenEnv) {
+                           Format format, String url, String tokenEnv, String bootstrapServers, String topic,
+                           KafkaKey key, String securityProtocol, String saslMechanism, String saslUsername,
+                           String saslPasswordEnv) {
 
         public boolean isEnabled() {
             return enabled == null || enabled;

@@ -79,6 +79,8 @@ signatures:
 # a SIEM that is down never blocks a client response. Changes apply to the next event.
 #   syslog       RFC 5424 over udp or tcp; format cef (ArcSight CEF, read by QRadar, ArcSight, Sentinel) or json
 #   splunk_hec   Splunk HTTP Event Collector; the token is read from the environment variable named in token_env
+#   kafka        JSON events on a topic, keyed by client_id (key: client_id | event_type | none); optional
+#                security_protocol, sasl_mechanism, sasl_username, sasl_password_env (password from the environment)
 # AIGATE_SIEM_SYSLOG_HOST overrides the syslog host (Compose sets it to the bundled receiver).
 audit:
   sinks:
@@ -94,6 +96,10 @@ audit:
       enabled: false
       url: https://splunk.internal:8088/services/collector/event
       token_env: AIGATE_SPLUNK_HEC_TOKEN
+    # - type: kafka
+    #   name: log-bus
+    #   bootstrap_servers: kafka:9092
+    #   topic: aigate.audit
 
 # Corporate identity provider (OIDC). Access tokens are accepted next to API keys: signature checked against the
 # provider's JWKS, plus iss, aud and exp. client_claim names the policy client (the agent or app), user_claim the

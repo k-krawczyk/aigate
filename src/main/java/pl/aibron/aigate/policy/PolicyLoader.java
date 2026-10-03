@@ -113,6 +113,20 @@ public final class PolicyLoader {
                         errors.add(path + ".port: must be 1-65535");
                     }
                 }
+                case KAFKA -> {
+                    if (sink.bootstrapServers() == null || sink.bootstrapServers().isBlank()) {
+                        errors.add(path + ".bootstrap_servers: required, e.g. kafka:9092");
+                    }
+                    if (sink.topic() == null || !sink.topic().matches("[A-Za-z0-9._-]{1,249}")) {
+                        errors.add(path + ".topic: required, letters, digits, '.', '_' or '-'");
+                    }
+                    if (sink.saslMechanism() != null && !sink.saslMechanism().matches("PLAIN|SCRAM-SHA-256|SCRAM-SHA-512")) {
+                        errors.add(path + ".sasl_mechanism: PLAIN, SCRAM-SHA-256 or SCRAM-SHA-512");
+                    }
+                    if (sink.saslMechanism() != null && (sink.saslUsername() == null || sink.saslPasswordEnv() == null)) {
+                        errors.add(path + ": sasl_mechanism needs sasl_username and sasl_password_env");
+                    }
+                }
                 case SPLUNK_HEC -> {
                     if (sink.url() == null || !sink.url().matches("https?://.+")) {
                         errors.add(path + ".url: required, http(s) URL of the HEC event endpoint");

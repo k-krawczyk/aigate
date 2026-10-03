@@ -43,7 +43,7 @@ The policy stores only SHA-256 hashes of these keys.
 docker compose --profile test run --rm tests  # no JDK needed either
 ```
 
-216 tests, all with a stubbed model and stubbed guards, so they run offline in about 15 seconds once dependencies are downloaded. Test names read as a checklist (`blocked: strict profile refuses a request containing a PESEL`, `allowed: ordinary multi-turn chat with growing history does not trip the loop breaker`). Every control has at least one case that must pass and one that must be stopped.
+219 tests, all with a stubbed model and stubbed guards, so they run offline in about 15 seconds once dependencies are downloaded. Test names read as a checklist (`blocked: strict profile refuses a request containing a PESEL`, `allowed: ordinary multi-turn chat with growing history does not trip the loop breaker`). Every control has at least one case that must pass and one that must be stopped.
 
 | Suite | What it proves |
 |---|---|
@@ -57,7 +57,7 @@ docker compose --profile test run --rm tests  # no JDK needed either
 | `AuthenticationTest`, `ModelAllowlistTest` | API keys, model allowlist |
 | `OidcAuthenticationTest` | IdP tokens against a local JWKS: valid, expired, wrong audience or issuer, foreign key, `alg: none`, HMAC confusion, unknown agent; groups tighten but never loosen |
 | `AuditTrailTest`, `DashboardAndExportTest` | Audit content (masked), dashboard, export, Prometheus metrics |
-| `CefFormatterTest`, `SiemForwardingTest` | CEF format and escaping; real UDP, TCP and HTTP receivers get masked events; a dead SIEM does not slow clients |
+| `CefFormatterTest`, `SiemForwardingTest`, `KafkaSinkTest` | CEF format and escaping; real UDP, TCP, HTTP receivers and an embedded Kafka broker get masked events; a dead SIEM or broker does not slow clients |
 | `ThreatCorpusTest` | The team's red-team corpus in `testdata/test-cases.json`, replayed end to end |
 | `LiveOllamaTest` | Same gateway with the real models; skipped unless `AIGATE_LIVE=true` (`AIGATE_LIVE=true ./mvnw test -Dtest=LiveOllamaTest`) |
 
@@ -133,7 +133,7 @@ The gateway starts from the copy bundled in the jar and follows `signatures.feed
 - **Management view** (`/dashboard/management`): budget consumption per client against policy limits, usage and cost by client and model, tokens over time.
 - **Playground** (`/dashboard/playground`): send a prompt through the public endpoint with any demo key and see the decision, matched rules and step timings.
 - **Export**: `GET /audit/export?format=jsonl` or `?format=csv`, optional `&hours=24`. The audit store only ever holds masked text.
-- **SIEM forwarding**: the `audit.sinks` section of the policy sends every event (requests, policy reloads, feed updates) to a SIEM as RFC 5424 syslog with an ArcSight CEF payload over UDP or TCP, or as JSON, or to Splunk HEC (token from an environment variable). Sinks are Camel endpoints, hot-reloaded with the policy; a SIEM that is down never delays a client. Compose includes a receiver standing in for the SIEM: `docker compose logs -f siem`.
+- **SIEM forwarding**: the `audit.sinks` section of the policy sends every event (requests, policy reloads, feed updates) to a SIEM as RFC 5424 syslog with an ArcSight CEF payload over UDP or TCP, or as JSON, to Splunk HEC (token from an environment variable), or onto a Kafka topic keyed by client (bounded producer, optional SASL with the password from the environment). Sinks are Camel endpoints, hot-reloaded with the policy; a SIEM that is down never delays a client. Compose includes a receiver standing in for the SIEM: `docker compose logs -f siem`.
 - **Metrics**: `GET /actuator/prometheus`, including `aigate_step_latency_seconds{step=...}`, `aigate_request_latency_seconds`, `aigate_requests_total{decision,category,client}`, `aigate_tokens_total`, `aigate_cost_usd_total`.
 
 Measured on an M2 Max with the models warm:

@@ -39,11 +39,13 @@ public class SiemSink implements AuditSink {
     private final String hostname;
 
     private final Environment environment;
+    private final KafkaSender kafka;
 
     public SiemSink(PolicyStore policyStore, ProducerTemplate producer, MeterRegistry metrics, Environment environment,
-                    @Value("${aigate.siem.syslog-host:}") String syslogHostOverride) {
+                    KafkaSender kafka, @Value("${aigate.siem.syslog-host:}") String syslogHostOverride) {
         this.policyStore = policyStore;
         this.environment = environment;
+        this.kafka = kafka;
         this.producer = producer;
         this.metrics = metrics;
         this.syslogHostOverride = syslogHostOverride;
@@ -63,15 +65,37 @@ public class SiemSink implements AuditSink {
             }
             try {
                 switch (spec.type()) {
-                    case SYSLOG -> sendSyslog(spec, event);
-                    case SPLUNK_HEC -> sendSplunk(spec, event);
+                    case SYSLOG -> {
+                        sendSyslog(spec, event);
+                        sent(spec);
+                    }
+                    case SPLUNK_HEC -> {
+                        sendSplunk(spec, event);
+                        sent(spec);
+                    }
+                    // Asynchronous: the outcome arrives later and must not hold up the next sink or event.
+                    case KAFKA -> kafka.send(spec, event.clientId(), event.eventType(), toJson(event),
+                            error -> {
+                                if (error == null) {
+                                    sent(spec);
+                                } else {
+                                    failed(spec, event, error);
+                                }
+                            });
                 }
-                metrics.counter("aigate.audit.sink.sent", "sink", spec.label()).increment();
             } catch (RuntimeException e) {
-                metrics.counter("aigate.audit.sink.failures", "sink", spec.label()).increment();
-                log.warn("SIEM sink {} failed for event {}: {}", spec.label(), event.id(), e.getMessage());
+                failed(spec, event, e);
             }
         }
+    }
+
+    private void sent(SinkSpec spec) {
+        metrics.counter("aigate.audit.sink.sent", "sink", spec.label()).increment();
+    }
+
+    private void failed(SinkSpec spec, AuditEvent event, Throwable error) {
+        metrics.counter("aigate.audit.sink.failures", "sink", spec.label()).increment();
+        log.warn("SIEM sink {} failed for event {}: {}", spec.label(), event.id(), error.getMessage());
     }
 
     private void sendSyslog(SinkSpec spec, AuditEvent event) {

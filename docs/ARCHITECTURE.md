@@ -221,7 +221,7 @@ The audit wire-tap already produces one `AuditEvent` per decision. Instead of wr
 | H2 | `jdbc` / `JdbcTemplate` | built-in dashboard |
 | Syslog (RFC 5424) with CEF or JSON payload | `netty` (UDP/TCP), implemented | QRadar, ArcSight, Sentinel via AMA |
 | HTTP Event Collector | `http`, implemented | Splunk |
-| Kafka topic | `kafka` | Elastic, any pipeline |
+| Kafka topic | `kafka`, implemented | Elastic, Splunk Connect for Kafka, any pipeline |
 | Webhook | `http` | anything else |
 
 ```yaml
@@ -244,7 +244,9 @@ The H2 store and the Micrometer metrics are always on; the policy lists only the
 
 Event fields are named after OCSF / ECS where an equivalent exists (`actor.user.name`, `event.action`, `event.outcome`), so a SIEM parser needs no custom mapping. Sinks are independent: a SIEM that is down never blocks the H2 write or the client response. Failed sends are counted and shown on the dashboard.
 
-Implemented: H2 (dashboard), Micrometer (Prometheus), and `SiemSink` with syslog CEF or JSON over UDP/TCP (Camel `netty`) and Splunk HEC (Camel `http`), configured under `audit.sinks` in the policy. Compose runs a receiver standing in for the SIEM.
+Implemented: H2 (dashboard), Micrometer (Prometheus), and `SiemSink` with syslog CEF or JSON over UDP/TCP (Camel `netty`), Splunk HEC (Camel `http`) and Kafka (Camel `kafka`), configured under `audit.sinks` in the policy. Compose runs a receiver standing in for the SIEM.
+
+The Kafka producer is bounded so a broker outage cannot back up the gateway: `max.block.ms` 2 s, delivery timeout 10 s, 8 MB buffer, asynchronous sends whose outcome feeds `aigate.audit.sink.sent` and `aigate.audit.sink.failures`. Records are keyed by `client_id`, so one client's events stay ordered on one partition.
 
 ## 9. Scalability (what changes beyond a hackathon)
 
