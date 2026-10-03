@@ -39,7 +39,7 @@ public class ContentInspection {
         var policy = exchange.getProperty(ExchangeKeys.POLICY, Policy.class);
         var client = exchange.getProperty(ExchangeKeys.CLIENT, ClientSpec.class);
         var request = exchange.getProperty(ExchangeKeys.REQUEST, ObjectNode.class);
-        var profile = policy.profileOf(client);
+        var profile = exchange.getProperty(ExchangeKeys.PROFILE, Profile.class);
 
         var toolViolation = tools.checkRequest(request, client.tools());
         if (toolViolation.isPresent()) {

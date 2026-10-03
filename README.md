@@ -43,7 +43,7 @@ The policy stores only SHA-256 hashes of these keys.
 docker compose --profile test run --rm tests  # no JDK needed either
 ```
 
-205 tests, all with a stubbed model and stubbed guards, so they run offline in about 15 seconds once dependencies are downloaded. Test names read as a checklist (`blocked: strict profile refuses a request containing a PESEL`, `allowed: ordinary multi-turn chat with growing history does not trip the loop breaker`). Every control has at least one case that must pass and one that must be stopped.
+216 tests, all with a stubbed model and stubbed guards, so they run offline in about 15 seconds once dependencies are downloaded. Test names read as a checklist (`blocked: strict profile refuses a request containing a PESEL`, `allowed: ordinary multi-turn chat with growing history does not trip the loop breaker`). Every control has at least one case that must pass and one that must be stopped.
 
 | Suite | What it proves |
 |---|---|
@@ -55,6 +55,7 @@ docker compose --profile test run --rm tests  # no JDK needed either
 | `BudgetGovernanceTest` | Token and cost budgets, loop breaker |
 | `PolicyLoaderTest`, `PolicyHotReloadTest` | Validation, hot reload, editor-style saves, broken edits keep the old policy |
 | `AuthenticationTest`, `ModelAllowlistTest` | API keys, model allowlist |
+| `OidcAuthenticationTest` | IdP tokens against a local JWKS: valid, expired, wrong audience or issuer, foreign key, `alg: none`, HMAC confusion, unknown agent; groups tighten but never loosen |
 | `AuditTrailTest`, `DashboardAndExportTest` | Audit content (masked), dashboard, export, Prometheus metrics |
 | `CefFormatterTest`, `SiemForwardingTest` | CEF format and escaping; real UDP, TCP and HTTP receivers get masked events; a dead SIEM does not slow clients |
 | `ThreatCorpusTest` | The team's red-team corpus in `testdata/test-cases.json`, replayed end to end |
@@ -93,7 +94,7 @@ Java 21, Spring Boot 4.1.1, Apache Camel 4.22.1, H2, Micrometer, Resilience4j, T
 
 | Control | Layer | OWASP LLM Top 10 (2025) |
 |---|---|---|
-| API key per client, model allowlist | rules | access control |
+| API key per client or OIDC access token from the corporate IdP; model allowlist | rules | access control |
 | PII: PESEL, IBAN and Polish NRB, payment card, email, phone, US SSN; checksums validated | rules | LLM02 |
 | Secrets: cloud and vendor tokens, private keys, JWT, credentials in URLs, high-entropy passwords; base64-encoded variants | rules | LLM02 |
 | Prompt injection: risk score from EN and PL indicators, then a guard model for the grey zone | rules + semantic | LLM01 |
@@ -114,6 +115,8 @@ Not covered, on purpose: LLM04 data and model poisoning, LLM08 vector stores (no
 - **Models** carry a price per 1000 tokens. Local models get an estimated compute price, so one budget covers local and commercial use.
 - **Budgets** per window: tokens, USD, model seconds, loop breaker. Clients override single fields.
 - **Clients**: key hash, profile, models, tool allowlist and argument deny patterns.
+- **Identity**: optional corporate IdP (OIDC). Access tokens are validated against the provider's JWKS (signature, `iss`, `aud`, `exp`; asymmetric algorithms only). `azp` selects the policy client, the user claim is recorded as the person the agent acts for, and IdP groups can tighten the client's profile but never loosen it. Works with Entra ID, Keycloak, Okta; API keys keep working alongside.
+- **Audit sinks**: SIEM forwarding, see below.
 
 Edit the file while the gateway runs. A valid change applies within about a second, also through the Docker bind mount. An invalid change (including a misspelled key) is rejected as a whole, the previous policy stays active, and the dashboard shows the errors. Every valid policy is also saved as a last-known-good copy in the data directory; if the file is broken when the gateway starts, it runs that copy, reports the errors and records a `policy_reload REJECTED` audit event, instead of refusing to start.
 
@@ -170,7 +173,6 @@ The agent uses the official OpenAI SDK; the only AIGate-specific line is `base_u
 - Streaming: the gateway needs the whole answer to check it, so a `stream=true` client gets the checked answer as one SSE chunk.
 - Budgets and the loop breaker are in memory, per instance. Several instances need a shared store such as Redis.
 - Agent-to-MCP traffic is governed through tool definitions and tool calls in chat completions; there is no separate MCP proxy.
-- Corporate IdP (OIDC) is an interface with documented configuration, not a shipped integration.
 - The guard models are small local models. The injection judge misses some role-play jailbreaks; known ones are covered by feed signatures. Granite Guardian 3 (2B) was evaluated and dropped because it scored ordinary requests as jailbreaks.
 
 Open-source components and AI tools used: [THIRD_PARTY.md](THIRD_PARTY.md).

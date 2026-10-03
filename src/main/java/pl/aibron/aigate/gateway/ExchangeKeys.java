@@ -9,6 +9,8 @@ public final class ExchangeKeys {
     public static final String REQUEST = "aigate.request";
     public static final String IDENTITY = "aigate.identity";
     public static final String CLIENT = "aigate.client";
+    public static final String PROFILE = "aigate.profile";
+    public static final String PROFILE_NAME = "aigate.profileName";
     public static final String MODEL = "aigate.model";
     public static final String STEP_TIMINGS = "aigate.stepTimings";
     public static final String STARTED_NANOS = "aigate.startedNanos";

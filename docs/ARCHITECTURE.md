@@ -191,19 +191,21 @@ CallerIdentity(clientId, subject, onBehalfOf, groups, authMethod)
 | Resolver | Token | Maps to policy client by | Status |
 |---|---|---|---|
 | `ApiKeyResolver` | opaque key | SHA-256 of the key | hackathon build |
-| `OidcJwtResolver` | JWT from the corporate IdP | `azp` / `client_id` claim for agents, `groups` claim for profile selection | interface + config only |
+| `OidcJwtResolver` | JWT from the corporate IdP | `azp` / `client_id` claim for agents, `groups` claim for profile selection | implemented, tested against a local JWKS |
 
-The OIDC resolver validates signature against the issuer's JWKS, plus `iss`, `aud` and `exp`. Spring Security's OAuth2 resource server does this out of the box, so the work is the claim mapping, not the crypto. Policy gets one optional section:
+The OIDC resolver validates the signature against the issuer's JWKS (Nimbus JOSE, cached, refetched on an unknown key id), plus `iss`, `aud` and `exp`, and accepts only asymmetric algorithms. A group mapped to a profile can tighten the client's profile, never loosen it. Policy section (example, commented out in the shipped policy):
 
 ```yaml
 identity:
-  providers:
-    - type: api_key
-    - type: oidc
+  oidc:
+    - name: corporate
       issuer: https://login.microsoftonline.com/<tenant>/v2.0
+      jwks_uri: https://login.microsoftonline.com/<tenant>/discovery/v2.0/keys
       audience: api://aigate
       client_claim: azp
-      group_to_profile: { ai-finance: strict, ai-devs: balanced }
+      user_claim: preferred_username
+      groups_claim: groups
+      group_profiles: { ai-finance: strict, ai-devs: balanced }
 ```
 
 `onBehalfOf` matters for agents: when an agent acts for a user, the audit trail records both, the agent (`azp`) and the human (`sub`). That is the "agents impersonating other actors" risk from the brief.
@@ -215,21 +217,28 @@ The audit wire-tap already produces one `AuditEvent` per decision. Instead of wr
 | Sink | Camel component | Typical SIEM |
 |---|---|---|
 | H2 | `jdbc` / `JdbcTemplate` | built-in dashboard |
-| Syslog (RFC 5424) with CEF payload | `netty` (UDP/TCP) | QRadar, ArcSight, Sentinel via AMA |
-| HTTP Event Collector | `http` | Splunk |
+| Syslog (RFC 5424) with CEF or JSON payload | `netty` (UDP/TCP), implemented | QRadar, ArcSight, Sentinel via AMA |
+| HTTP Event Collector | `http`, implemented | Splunk |
 | Kafka topic | `kafka` | Elastic, any pipeline |
 | Webhook | `http` | anything else |
 
 ```yaml
 audit:
   sinks:
-    - type: h2
     - type: syslog
-      enabled: false
+      name: siem-syslog
       host: siem.internal
-      port: 6514
-      format: cef
+      port: 5514
+      protocol: udp        # udp | tcp
+      format: cef          # cef | json
+    - type: splunk_hec
+      name: splunk
+      enabled: false
+      url: https://splunk.internal:8088/services/collector/event
+      token_env: AIGATE_SPLUNK_HEC_TOKEN
 ```
+
+The H2 store and the Micrometer metrics are always on; the policy lists only the external sinks.
 
 Event fields are named after OCSF / ECS where an equivalent exists (`actor.user.name`, `event.action`, `event.outcome`), so a SIEM parser needs no custom mapping. Sinks are independent: a SIEM that is down never blocks the H2 write or the client response. Failed sends are counted and shown on the dashboard.
 
@@ -253,4 +262,4 @@ Camel is the reason the right-hand column is mostly a change of endpoint URI, no
 2. Response redaction is silent: the client gets the masked text with no marker. The audit event records what was redacted and why.
 3. Demo agent with real tools: open, see the proposal in the planning notes.
 4. Estimate-then-charge budgets are accepted; one request may overshoot by at most its own size.
-5. OIDC: interface and configuration only, no Keycloak in the demo. The README and slides say so explicitly.
+5. OIDC: implemented and tested against a local JWKS; no Keycloak container in the demo.

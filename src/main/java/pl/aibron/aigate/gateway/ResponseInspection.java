@@ -13,6 +13,7 @@ import pl.aibron.aigate.inspection.FindingKind;
 import pl.aibron.aigate.inspection.TextInspector;
 import pl.aibron.aigate.policy.ClientSpec;
 import pl.aibron.aigate.policy.Policy;
+import pl.aibron.aigate.policy.Profile;
 import pl.aibron.aigate.policy.Profile.Action;
 
 /**
@@ -52,7 +53,7 @@ public class ResponseInspection {
         }
         var policy = exchange.getProperty(ExchangeKeys.POLICY, Policy.class);
         var client = exchange.getProperty(ExchangeKeys.CLIENT, ClientSpec.class);
-        var profile = policy.profileOf(client);
+        var profile = exchange.getProperty(ExchangeKeys.PROFILE, Profile.class);
         var planted = exchange.getProperty(ExchangeKeys.CANARY, SystemPromptGuard.Planted.class);
 
         var toolViolation = tools.checkResponse(response, client.tools());

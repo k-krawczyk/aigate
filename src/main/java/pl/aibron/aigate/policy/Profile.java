@@ -20,6 +20,14 @@ public record Profile(
 
     public record GuardThresholds(double harmful, double injection) { }
 
+    /**
+     * Higher is stricter: first by how PII is treated, then by how often the guard models are asked. Used when an
+     * IdP group maps to a profile, so a group can tighten a client but never loosen it.
+     */
+    public int strictness() {
+        return onPii.ordinal() * 10 + (SemanticMode.values().length - 1 - semanticCheck.ordinal());
+    }
+
     public Profile {
         semanticCheck = semanticCheck == null ? SemanticMode.ON_UNSURE : semanticCheck;
         onPii = onPii == null ? Action.REDACT : onPii;

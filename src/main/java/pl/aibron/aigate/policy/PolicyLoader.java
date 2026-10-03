@@ -124,6 +124,25 @@ public final class PolicyLoader {
             }
         }
 
+        var providerNames = new HashSet<String>();
+        for (var provider : policy.identity().oidc()) {
+            var path = "identity.oidc." + provider.name();
+            if (provider.name() == null || !providerNames.add(provider.name())) {
+                errors.add("identity.oidc: every provider needs a unique name");
+            }
+            if (provider.issuer() == null || !provider.issuer().matches("https?://.+")) {
+                errors.add(path + ".issuer: required, the issuer URL exactly as in the token's iss claim");
+            }
+            if (provider.audience() == null || provider.audience().isBlank()) {
+                errors.add(path + ".audience: required, tokens for other audiences must be refused");
+            }
+            provider.groupProfiles().forEach((group, profile) -> {
+                if (!policy.profiles().containsKey(profile)) {
+                    errors.add(path + ".group_profiles." + group + ": unknown profile '" + profile + "'");
+                }
+            });
+        }
+
         var clientIds = new HashSet<String>();
         var keyHashes = new HashSet<String>();
         for (var client : policy.clients()) {
@@ -135,9 +154,10 @@ public final class PolicyLoader {
             if (!clientIds.add(client.id())) {
                 errors.add(prefix + ": duplicate client id");
             }
-            if (client.apiKeySha256() == null || !SHA256_HEX.matcher(client.apiKeySha256()).matches()) {
+            // A client may authenticate only through the corporate IdP, so the key hash is optional.
+            if (client.apiKeySha256() != null && !SHA256_HEX.matcher(client.apiKeySha256()).matches()) {
                 errors.add(prefix + ".api_key_sha256: expected 64 lowercase hex characters");
-            } else if (!keyHashes.add(client.apiKeySha256())) {
+            } else if (client.apiKeySha256() != null && !keyHashes.add(client.apiKeySha256())) {
                 errors.add(prefix + ".api_key_sha256: same key as another client");
             }
             if (!policy.profiles().containsKey(client.profile())) {

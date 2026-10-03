@@ -14,7 +14,8 @@ public record Policy(
         Budgets budgets,
         Signatures signatures,
         List<ClientSpec> clients,
-        AuditConfig audit) {
+        AuditConfig audit,
+        IdentityConfig identity) {
 
     public Policy {
         profiles = profiles == null ? Map.of() : Map.copyOf(profiles);
@@ -22,6 +23,7 @@ public record Policy(
         clients = clients == null ? List.of() : List.copyOf(clients);
         budgets = budgets == null ? Budgets.NONE : budgets;
         audit = audit == null ? AuditConfig.NONE : audit;
+        identity = identity == null ? IdentityConfig.NONE : identity;
     }
 
     public Optional<ModelSpec> model(String name) {

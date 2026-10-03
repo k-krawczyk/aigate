@@ -57,9 +57,18 @@ public class GatewayPipeline {
                 .flatMap(r -> r.resolve(header, policy).stream())
                 .findFirst()
                 .orElseThrow(() -> new GatewayRejection(401, "invalid_api_key", "access_control",
-                        "Missing or unknown API key"));
+                        "Missing or invalid credentials"));
+        var client = policy.client(identity.clientId()).orElseThrow();
+        // An IdP group can tighten the client's profile for this caller, never loosen it.
+        var profileName = client.profile();
+        if (identity.profileOverride() != null && policy.profiles().get(identity.profileOverride()).strictness()
+                > policy.profiles().get(profileName).strictness()) {
+            profileName = identity.profileOverride();
+        }
         exchange.setProperty(ExchangeKeys.IDENTITY, identity);
-        exchange.setProperty(ExchangeKeys.CLIENT, policy.client(identity.clientId()).orElseThrow());
+        exchange.setProperty(ExchangeKeys.CLIENT, client);
+        exchange.setProperty(ExchangeKeys.PROFILE_NAME, profileName);
+        exchange.setProperty(ExchangeKeys.PROFILE, policy.profiles().get(profileName));
     }
 
     public void authorizeModel(Exchange exchange) {

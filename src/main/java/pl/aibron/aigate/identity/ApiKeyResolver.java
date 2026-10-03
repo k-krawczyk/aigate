@@ -26,9 +26,10 @@ public class ApiKeyResolver implements IdentityResolver {
         }
         var presented = sha256(authorizationHeader.substring(BEARER.length()).trim());
         return policy.clients().stream()
+                .filter(c -> c.apiKeySha256() != null)
                 .filter(c -> MessageDigest.isEqual(presented, HexFormat.of().parseHex(c.apiKeySha256())))
                 .findFirst()
-                .map(c -> new CallerIdentity(c.id(), c.id(), null, List.of(), "api_key"));
+                .map(c -> new CallerIdentity(c.id(), c.id(), null, List.of(), "api_key", null));
     }
 
     public static String sha256Hex(String key) {

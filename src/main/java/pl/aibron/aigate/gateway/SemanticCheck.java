@@ -39,7 +39,7 @@ public class SemanticCheck {
         var policy = exchange.getProperty(ExchangeKeys.POLICY, Policy.class);
         var client = exchange.getProperty(ExchangeKeys.CLIENT, ClientSpec.class);
         var request = exchange.getProperty(ExchangeKeys.REQUEST, ObjectNode.class);
-        var profile = policy.profileOf(client);
+        var profile = exchange.getProperty(ExchangeKeys.PROFILE, Profile.class);
         var text = MessageText.newInput(request);
 
         var risk = riskScorer.assess(text);

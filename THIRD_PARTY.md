@@ -8,6 +8,7 @@
 | Apache Camel (Spring Boot starters) | 4.22.1 | Apache 2.0 | Routing: platform-http, http, file-watch, timer, Resilience4j circuit breaker |
 | Resilience4j | 2.4.0 (via Camel) | Apache 2.0 | Circuit breaker around model calls |
 | Jackson (databind, YAML) | 2.21 | Apache 2.0 | JSON and policy YAML parsing |
+| Nimbus JOSE + JWT | 10.10 | Apache 2.0 | OIDC access token validation (JWKS, signatures, claims) |
 | H2 Database | managed by Spring Boot | MPL 2.0 / EPL 1.0 | Audit store |
 | Micrometer, Prometheus registry | managed by Spring Boot | Apache 2.0 | Metrics |
 | Thymeleaf | managed by Spring Boot | Apache 2.0 | Dashboard templates |

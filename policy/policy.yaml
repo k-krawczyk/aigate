@@ -95,6 +95,23 @@ audit:
       url: https://splunk.internal:8088/services/collector/event
       token_env: AIGATE_SPLUNK_HEC_TOKEN
 
+# Corporate identity provider (OIDC). Access tokens are accepted next to API keys: signature checked against the
+# provider's JWKS, plus iss, aud and exp. client_claim names the policy client (the agent or app), user_claim the
+# person it acts for (recorded in the audit as on_behalf_of). A group can tighten the client's profile, never
+# loosen it. Uncomment and point at your IdP, e.g. Entra ID:
+#   issuer: https://login.microsoftonline.com/<tenant-id>/v2.0
+#   jwks_uri: https://login.microsoftonline.com/<tenant-id>/discovery/v2.0/keys
+# identity:
+#   oidc:
+#     - name: corporate
+#       issuer: https://keycloak.internal/realms/bank
+#       audience: aigate
+#       client_claim: azp
+#       user_claim: preferred_username
+#       groups_claim: groups
+#       group_profiles:
+#         ai-finance: strict
+
 # Callers. Only SHA-256 hashes of API keys live here; the demo keys are listed in the README.
 #   echo -n '<key>' | shasum -a 256
 clients:
