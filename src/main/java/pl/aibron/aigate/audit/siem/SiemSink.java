@@ -1,5 +1,6 @@
 package pl.aibron.aigate.audit.siem;
 
+import java.math.BigDecimal;
 import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
@@ -91,8 +92,11 @@ public class SiemSink implements AuditSink {
         if (token == null || token.isBlank()) {
             throw new IllegalStateException("environment variable " + spec.tokenEnv() + " is not set");
         }
+        // Epoch seconds as a plain decimal. A double would be written as 1.791048401679E9, which Splunk 10 HEC
+        // rejects with code 15 "Error in handling indexed fields".
         var body = JSON.createObjectNode().put("sourcetype", "aigate:audit").put("source", "aigate")
-                .put("host", hostname).put("time", event.timestamp().toEpochMilli() / 1000.0);
+                .put("host", hostname)
+                .put("time", BigDecimal.valueOf(event.timestamp().toEpochMilli()).movePointLeft(3));
         body.set("event", JSON.valueToTree(asMap(event)));
         var reply = producer.request(spec.url(), exchange -> {
             exchange.getMessage().setHeader(Exchange.HTTP_METHOD, "POST");

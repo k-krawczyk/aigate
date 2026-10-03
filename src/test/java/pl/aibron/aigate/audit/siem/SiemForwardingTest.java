@@ -91,9 +91,16 @@ class SiemForwardingTest extends GatewayTestSupport {
         });
         hecServer = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
         hecServer.createContext("/services/collector/event", exchange -> {
-            HEC.add(exchange.getRequestHeaders().getFirst("Authorization") + " "
-                    + new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
-            exchange.sendResponseHeaders(200, -1);
+            var body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            // Behaves like Splunk 10 HEC: a time in exponent notation is refused.
+            if (body.matches("(?s).*\"time\":[0-9.]*E.*")) {
+                var error = "{\"text\":\"Error in handling indexed fields\",\"code\":15}".getBytes(StandardCharsets.UTF_8);
+                exchange.sendResponseHeaders(400, error.length);
+                exchange.getResponseBody().write(error);
+            } else {
+                HEC.add(exchange.getRequestHeaders().getFirst("Authorization") + " " + body);
+                exchange.sendResponseHeaders(200, -1);
+            }
             exchange.close();
         });
         hecServer.start();
@@ -165,6 +172,7 @@ class SiemForwardingTest extends GatewayTestSupport {
         var hec = next(HEC, "sensitive_data");
         assertThat(hec).startsWith("Splunk test-hec-token ").contains("\"sourcetype\":\"aigate:audit\"")
                 .doesNotContain("44051401359");
+        assertThat(hec).containsPattern("\"time\":\\d{10}\\.\\d{3}[,}]");
     }
 
     @Test
