@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: aigate
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: 8080
+
+camel:
+  main:
+    name: aigate
+  rest:
+    component: platform-http
+    binding-mode: off
+
+aigate:
+  upstream:
+    # Ollama's OpenAI-compatible endpoint. throwExceptionOnFailure=false passes upstream errors through to the client.
+    uri: ${AIGATE_UPSTREAM_URI:http://localhost:11434/v1/chat/completions?throwExceptionOnFailure=false}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
