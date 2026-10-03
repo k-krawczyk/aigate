@@ -1,3 +1,7 @@
+# TEST COPY of policy/policy.yaml. Differences, both needed because the Spring context (and so the budget
+# ledger) is shared across test classes:
+#   - the global loop breaker is effectively off, so tests that repeat "hello" do not trip it;
+#   - three extra clients with tiny limits exercise budgets and the loop breaker in isolation.
 # AIGate policy: the single source of truth for every control.
 #
 # The gateway watches this directory and applies a valid edit on the next request, without a restart.
@@ -64,7 +68,7 @@ budgets:
   max_cost_usd: 5.00
   max_model_seconds: 600
   loop_breaker:
-    max_similar_requests: 5   # the 6th near-identical request within the window is refused
+    max_similar_requests: 100000
     within: 60s
     similarity: 0.9           # Jaccard similarity of word shingles
 
@@ -100,3 +104,27 @@ clients:
     api_key_sha256: 9b9f0a01c506078b8bb33774adcfbb5c5ca0a0e06beffaee338e41e96a8066c9
     profile: permissive
     models: [llama3.2:3b, granite4:3b]
+
+  - id: tiny-budget
+    api_key_sha256: a33f362b6bb3d38812d89db3f8ad3d51a9d6d3f1231ece84f7ca71ec901ffd54
+    profile: balanced
+    models: [llama3.2:3b]
+    budgets:
+      max_tokens: 40
+
+  - id: tiny-cost
+    api_key_sha256: 269b7f3567a9243ba3a16694ff764a9b24586b857404845b90711911cfb774b2
+    profile: balanced
+    models: [gpt-4o]
+    budgets:
+      max_cost_usd: 0.0001
+
+  - id: loop-test
+    api_key_sha256: 60093dd239d4769ec0d80f25e2ad3d8edbd2f88796a55a8be6eb35e464306995
+    profile: balanced
+    models: [llama3.2:3b]
+    budgets:
+      loop_breaker:
+        max_similar_requests: 2
+        within: 60s
+        similarity: 0.9

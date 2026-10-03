@@ -56,6 +56,19 @@ class PolicyHotReloadTest extends GatewayTestSupport {
     }
 
     @Test
+    @DisplayName("applied: lowering a client's token budget to 0 refuses its next request")
+    void budgetChange() throws Exception {
+        assertThat(chat(SANDBOX_KEY, "llama3.2:3b", "budget probe one").statusCode()).isEqualTo(200);
+        int revision = store.active().revision();
+
+        write(policy().replace("profile: permissive\n    models: [llama3.2:3b, granite4:3b]",
+                "profile: permissive\n    models: [llama3.2:3b, granite4:3b]\n    budgets:\n      max_tokens: 0"));
+
+        awaitTrue(() -> store.active().revision() > revision);
+        assertThat(chat(SANDBOX_KEY, "llama3.2:3b", "budget probe two").statusCode()).isEqualTo(429);
+    }
+
+    @Test
     @DisplayName("rejected: broken policy keeps the previous one active and records the errors")
     void invalidEditKeepsPrevious() throws Exception {
         int revision = store.active().revision();

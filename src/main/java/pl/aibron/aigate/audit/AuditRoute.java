@@ -74,7 +74,12 @@ public class AuditRoute extends RouteBuilder {
         Long promptTokens = null;
         Long completionTokens = null;
         Double cost = null;
-        if (status == null || status == 200) {
+        var charged = exchange.getProperty(ExchangeKeys.USAGE_TOKENS, long[].class);
+        if (charged != null) {
+            promptTokens = charged[0];
+            completionTokens = charged[1];
+            cost = exchange.getProperty(ExchangeKeys.COST_USD, Double.class);
+        } else if (status == null || status == 200) {
             var usage = usageOf(exchange.getMessage().getBody(String.class));
             if (usage != null) {
                 promptTokens = usage.path("prompt_tokens").asLong();

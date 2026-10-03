@@ -7,6 +7,8 @@ import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
 import org.springframework.stereotype.Component;
 
+import pl.aibron.aigate.budget.BudgetGuard;
+
 @Component
 public class ChatCompletionsRoute extends RouteBuilder {
 
@@ -15,12 +17,14 @@ public class ChatCompletionsRoute extends RouteBuilder {
     private final GatewayPipeline pipeline;
     private final ContentInspection contentInspection;
     private final ResponseInspection responseInspection;
+    private final BudgetGuard budgetGuard;
 
     public ChatCompletionsRoute(GatewayPipeline pipeline, ContentInspection contentInspection,
-                                ResponseInspection responseInspection) {
+                                ResponseInspection responseInspection, BudgetGuard budgetGuard) {
         this.pipeline = pipeline;
         this.contentInspection = contentInspection;
         this.responseInspection = responseInspection;
+        this.budgetGuard = budgetGuard;
     }
 
     @Override
@@ -41,10 +45,12 @@ public class ChatCompletionsRoute extends RouteBuilder {
                 .process(timed("parse", pipeline::begin))
                 .process(timed("authenticate", pipeline::authenticate))
                 .process(timed("model_allowlist", pipeline::authorizeModel))
+                .process(timed("budget", budgetGuard::admit))
                 .process(timed("request_rules", contentInspection::inspectRequest))
                 .process(GatewayPipeline.startStep("upstream"))
                 .to("direct:upstream")
                 .process(GatewayPipeline.endStep("upstream"))
+                .process(budgetGuard::charge)
                 .process(timed("response_rules", responseInspection::inspectResponse))
                 .setHeader("X-AIGate-Request-Id", exchangeProperty(ExchangeKeys.REQUEST_ID))
                 .wireTap("direct:audit");
@@ -65,6 +71,7 @@ public class ChatCompletionsRoute extends RouteBuilder {
         exchange.setProperty(ExchangeKeys.DECISION, Decision.BLOCK);
         if (exchange.getProperty(ExchangeKeys.CATEGORY) == null) {
             exchange.setProperty(ExchangeKeys.CATEGORY, rejection.category());
+            exchange.setProperty(ExchangeKeys.OWASP, rejection.owasp());
             exchange.setProperty(ExchangeKeys.DIRECTION, "request");
         }
         var error = JSON.createObjectNode();
