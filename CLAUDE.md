@@ -1,6 +1,6 @@
-# Tollgate: AI Control Layer, HackYeah 2026 (Goldman Sachs task)
+# AIGate: AI Control Layer, HackYeah 2026 (Goldman Sachs task)
 
-Project name: **Tollgate**. Every AI request passes the gate (security and policy checks) and pays the toll (token, cost and compute budgets). Use the name in the README, dashboard header, slides and Maven coordinates (`pl.hackyeah:tollgate`, base package `pl.hackyeah.tollgate`).
+Project name: **AIGate**. Use the name in the README, dashboard header and slides. Maven coordinates `pl.aibron:aigate`, base package `pl.aibron.aigate`.
 
 ## Situation
 
