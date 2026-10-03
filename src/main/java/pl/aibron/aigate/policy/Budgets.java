@@ -18,8 +18,9 @@ public record Budgets(
         }
     }
 
+    /** One hour when neither the client nor the global budgets name a window. */
     public Duration windowDuration() {
-        return Durations.parse(window);
+        return window == null ? Duration.ofHours(1) : Durations.parse(window);
     }
 
     Budgets withDefaults(Budgets global) {

@@ -87,6 +87,35 @@ class PolicyLoaderTest {
     }
 
     @Test
+    @DisplayName("allowed: budgets without a window default to one hour instead of failing every request")
+    void budgetsWithoutWindow() throws Exception {
+        var policy = PolicyLoader.parse(shippedPolicy().replace("  window: 1h\n", ""));
+
+        assertThat(policy.budgetsOf(policy.client("demo-agent").orElseThrow()).windowDuration())
+                .isEqualTo(java.time.Duration.ofHours(1));
+    }
+
+    @Test
+    @DisplayName("blocked: client without a profile is a validation error, not a crash")
+    void clientWithoutProfile() throws Exception {
+        var yaml = shippedPolicy().replace("    profile: strict\n", "");
+
+        assertThatThrownBy(() -> PolicyLoader.parse(yaml))
+                .isInstanceOf(InvalidPolicyException.class)
+                .hasMessageContaining("clients.finance-app.profile: required");
+    }
+
+    @Test
+    @DisplayName("blocked: model without a kind")
+    void modelWithoutKind() throws Exception {
+        var yaml = shippedPolicy().replace("  - name: granite4:3b\n    kind: local\n", "  - name: granite4:3b\n");
+
+        assertThatThrownBy(() -> PolicyLoader.parse(yaml))
+                .isInstanceOf(InvalidPolicyException.class)
+                .hasMessageContaining("models.granite4:3b.kind: required");
+    }
+
+    @Test
     @DisplayName("blocked: client granted a model that is not declared")
     void undeclaredModel() throws Exception {
         var yaml = shippedPolicy().replace("models: [llama3.2:3b, granite4:3b]", "models: [llama3.2:3b, mixtral:8x7b]");

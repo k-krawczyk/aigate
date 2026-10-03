@@ -53,7 +53,13 @@ public final class PolicyLoader {
         if (policy == null) {
             throw new InvalidPolicyException(List.of("policy file is empty"));
         }
-        var errors = validate(policy);
+        List<String> errors;
+        try {
+            errors = validate(policy);
+        } catch (RuntimeException e) {
+            // A gap the checks below did not anticipate must reject the file, not crash the reload or the start.
+            errors = List.of("policy could not be validated: " + e);
+        }
         if (!errors.isEmpty()) {
             throw new InvalidPolicyException(errors);
         }
@@ -87,6 +93,9 @@ public final class PolicyLoader {
                 errors.add("models: every model needs a name");
             } else if (!modelNames.add(model.name())) {
                 errors.add("models: duplicate model " + model.name());
+            }
+            if (model.kind() == null) {
+                errors.add("models." + model.name() + ".kind: required, local or commercial");
             }
             if (model.pricePer1kInput() < 0 || model.pricePer1kOutput() < 0) {
                 errors.add("models." + model.name() + ": prices must not be negative");
@@ -187,7 +196,9 @@ public final class PolicyLoader {
             } else if (client.apiKeySha256() != null && !keyHashes.add(client.apiKeySha256())) {
                 errors.add(prefix + ".api_key_sha256: same key as another client");
             }
-            if (!policy.profiles().containsKey(client.profile())) {
+            if (client.profile() == null) {
+                errors.add(prefix + ".profile: required");
+            } else if (!policy.profiles().containsKey(client.profile())) {
                 errors.add(prefix + ".profile: unknown profile '" + client.profile() + "'");
             }
             for (var model : client.models()) {

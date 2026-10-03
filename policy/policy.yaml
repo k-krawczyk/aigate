@@ -57,7 +57,8 @@ models:
     price_per_1k_input: 0.0025
     price_per_1k_output: 0.01
 
-# Global budgets, per client and per window. A client's own budgets override single fields.
+# Global budgets, per client and per window. A client's own budgets override single fields. The window defaults
+# to 1h when neither sets one.
 budgets:
   window: 1h
   max_tokens: 200000
