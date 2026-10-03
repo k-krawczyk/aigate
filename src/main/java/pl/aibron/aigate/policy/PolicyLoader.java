@@ -134,6 +134,12 @@ public final class PolicyLoader {
                     if (sink.tokenEnv() == null || sink.tokenEnv().isBlank()) {
                         errors.add(path + ".token_env: name of the environment variable with the HEC token");
                     }
+                    if (sink.batchSize() != null && (sink.batchSize() < 1 || sink.batchSize() > 1000)) {
+                        errors.add(path + ".batch_size: must be 1-1000");
+                    }
+                    if (sink.batchInterval() != null) {
+                        checkDuration(path + ".batch_interval", sink.batchInterval(), errors);
+                    }
                 }
             }
         }

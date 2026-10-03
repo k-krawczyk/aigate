@@ -20,6 +20,7 @@ import pl.aibron.aigate.audit.AuditEvent;
 import pl.aibron.aigate.audit.AuditSink;
 import pl.aibron.aigate.policy.AuditConfig.Format;
 import pl.aibron.aigate.policy.AuditConfig.SinkSpec;
+import pl.aibron.aigate.policy.Durations;
 import pl.aibron.aigate.policy.PolicyStore;
 
 /**
@@ -69,10 +70,8 @@ public class SiemSink implements AuditSink {
                         sendSyslog(spec, event);
                         sent(spec);
                     }
-                    case SPLUNK_HEC -> {
-                        sendSplunk(spec, event);
-                        sent(spec);
-                    }
+                    // Counted by SplunkHecRoute when the batch is delivered or refused.
+                    case SPLUNK_HEC -> sendSplunk(spec, event);
                     // Asynchronous: the outcome arrives later and must not hold up the next sink or event.
                     case KAFKA -> kafka.send(spec, event.clientId(), event.eventType(),
                             toJson(spec.format() == Format.ECS ? Format.ECS : Format.JSON, event),
@@ -120,20 +119,23 @@ public class SiemSink implements AuditSink {
         }
         // Epoch seconds as a plain decimal. A double would be written as 1.791048401679E9, which Splunk 10 HEC
         // rejects with code 15 "Error in handling indexed fields".
-        var body = JSON.createObjectNode().put("sourcetype", "aigate:audit").put("source", "aigate")
+        var body = JSON.createObjectNode()
+                .put("sourcetype", spec.sourcetype() == null ? "aigate:audit" : spec.sourcetype())
+                .put("source", "aigate")
                 .put("host", hostname)
                 .put("time", BigDecimal.valueOf(event.timestamp().toEpochMilli()).movePointLeft(3));
+        if (spec.index() != null) {
+            body.put("index", spec.index());
+        }
         body.set("event", JSON.valueToTree(spec.format() == Format.ECS
                 ? EcsFormatter.ecs(event, asMap(event)) : asMap(event)));
-        var reply = producer.request(spec.url(), exchange -> {
-            exchange.getMessage().setHeader(Exchange.HTTP_METHOD, "POST");
-            exchange.getMessage().setHeader(Exchange.CONTENT_TYPE, "application/json");
-            exchange.getMessage().setHeader("Authorization", "Splunk " + token);
-            exchange.getMessage().setBody(body.toString());
-        });
-        if (reply.getException() != null) {
-            throw new IllegalStateException(reply.getException().getMessage(), reply.getException());
-        }
+        // Queued for the batching route; a full queue throws here and counts as a failure of this sink.
+        producer.sendBodyAndHeaders(SplunkHecRoute.QUEUE, body.toString(), Map.of(
+                SplunkHecRoute.SINK, spec.label(),
+                SplunkHecRoute.URL, spec.url(),
+                SplunkHecRoute.TOKEN, token,
+                SplunkHecRoute.BATCH_SIZE, spec.effectiveBatchSize(),
+                SplunkHecRoute.BATCH_MILLIS, Durations.parse(spec.effectiveBatchInterval()).toMillis()));
     }
 
     private static String toJson(Format format, AuditEvent event) {

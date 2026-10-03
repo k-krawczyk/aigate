@@ -129,6 +129,10 @@ class SiemForwardingTest extends GatewayTestSupport {
                       name: splunk
                       url: http://localhost:%d/services/collector/event
                       token_env: AIGATE_TEST_HEC_TOKEN
+                      index: aigate_test
+                      sourcetype: aigate:test
+                      batch_size: 3
+                      batch_interval: 1s
                     - type: syslog
                       name: dead-siem
                       host: localhost
@@ -171,9 +175,25 @@ class SiemForwardingTest extends GatewayTestSupport {
                 "\"auth_method\":\"api_key\"", "\"policy_revision\":").doesNotContain("44051401359");
 
         var hec = next(HEC, "sensitive_data");
-        assertThat(hec).startsWith("Splunk test-hec-token ").contains("\"sourcetype\":\"aigate:audit\"")
-                .doesNotContain("44051401359");
+        assertThat(hec).startsWith("Splunk test-hec-token ").contains("\"sourcetype\":\"aigate:test\"",
+                "\"index\":\"aigate_test\"").doesNotContain("44051401359");
         assertThat(hec).containsPattern("\"time\":\\d{10}\\.\\d{3}[,}]");
+    }
+
+    @Test
+    @DisplayName("batched: three quick decisions reach Splunk HEC in one request, one event object per line")
+    void hecBatching() throws Exception {
+        awaitSinksConfigured();
+        HEC.clear();
+
+        for (int i = 1; i <= 3; i++) {
+            chat(SANDBOX_KEY, "llama3.2:3b", "batch probe " + i);
+        }
+
+        var batch = next(HEC, "batch probe 3");
+        var events = batch.substring(batch.indexOf(' ', "Splunk ".length()) + 1).split("\n");
+        assertThat(events).hasSize(3);
+        assertThat(events).allSatisfy(e -> assertThat(e).startsWith("{").endsWith("}").contains("batch probe"));
     }
 
     @Test

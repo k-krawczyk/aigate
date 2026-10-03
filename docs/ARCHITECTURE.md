@@ -220,7 +220,7 @@ The audit wire-tap already produces one `AuditEvent` per decision. Instead of wr
 |---|---|---|
 | H2 | `jdbc` / `JdbcTemplate` | built-in dashboard |
 | Syslog (RFC 5424) with CEF or JSON payload | `netty` (UDP/TCP), implemented | QRadar, ArcSight, Sentinel via AMA |
-| HTTP Event Collector | `http`, implemented | Splunk |
+| HTTP Event Collector | `http` behind the `aggregate` EIP (batches of `batch_size` events or `batch_interval`), implemented | Splunk |
 | Kafka topic | `kafka`, implemented | Elastic, Splunk Connect for Kafka, any pipeline |
 | Webhook | `http` | anything else |
 

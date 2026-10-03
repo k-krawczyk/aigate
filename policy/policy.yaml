@@ -80,7 +80,8 @@ signatures:
 #   syslog       RFC 5424 over udp or tcp; format cef (ArcSight CEF, read by QRadar, ArcSight, Sentinel), json (flat
 #                fields) or ecs (Elastic Common Schema, flat fields kept under aigate.*); json and ecs also apply to
 #                kafka and splunk_hec
-#   splunk_hec   Splunk HTTP Event Collector; the token is read from the environment variable named in token_env
+#   splunk_hec   Splunk HTTP Event Collector; the token is read from the environment variable named in token_env;
+#                optional index and sourcetype; events are batched (batch_size, default 50; batch_interval, default 1s)
 #   kafka        JSON events on a topic, keyed by client_id (key: client_id | event_type | none); optional
 #                security_protocol, sasl_mechanism, sasl_username, sasl_password_env (password from the environment)
 # AIGATE_SIEM_SYSLOG_HOST overrides the syslog host (Compose sets it to the bundled receiver).

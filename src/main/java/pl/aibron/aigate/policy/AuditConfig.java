@@ -23,14 +23,26 @@ public record AuditConfig(List<SinkSpec> sinks) {
     /**
      * @param tokenEnv name of the environment variable holding the Splunk HEC token; secrets stay out of the policy
      * @param saslPasswordEnv name of the environment variable holding the Kafka SASL password, same reason
+     * @param index Splunk index; omitted, the HEC token's default index applies
+     * @param batchSize Splunk HEC: events per request (default 50)
+     * @param batchInterval Splunk HEC: longest time an event waits for its batch (default 1s)
      */
     public record SinkSpec(SinkType type, String name, Boolean enabled, String host, Integer port, Protocol protocol,
                            Format format, String url, String tokenEnv, String bootstrapServers, String topic,
                            KafkaKey key, String securityProtocol, String saslMechanism, String saslUsername,
-                           String saslPasswordEnv) {
+                           String saslPasswordEnv, String index, String sourcetype, Integer batchSize,
+                           String batchInterval) {
 
         public boolean isEnabled() {
             return enabled == null || enabled;
+        }
+
+        public int effectiveBatchSize() {
+            return batchSize == null ? 50 : batchSize;
+        }
+
+        public String effectiveBatchInterval() {
+            return batchInterval == null ? "1s" : batchInterval;
         }
 
         public String label() {
