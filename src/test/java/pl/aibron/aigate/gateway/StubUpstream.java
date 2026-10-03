@@ -15,6 +15,7 @@ import org.springframework.context.annotation.Bean;
  *   <li>{@code @fixture <key>}: answer with text registered in {@link #FIXTURES}, for answers whose content
  *       would already be caught if it appeared in the request</li>
  *   <li>{@code @leak}: answer with the full system prompt the model received</li>
+ *   <li>{@code @leaktool <name>}: call that tool with the full system prompt as its argument</li>
  *   <li>{@code @upstream-down}: fail as an unreachable model server would</li>
  * </ul>
  */
@@ -62,6 +63,11 @@ public class StubUpstream {
             message.put("content", FIXTURES.get(last.substring(9).trim()));
         } else if (last.startsWith("@say ")) {
             message.put("content", last.substring(5));
+        } else if (last.startsWith("@leaktool ")) {
+            message.put("content", "");
+            var call = message.putArray("tool_calls").addObject().put("id", "call_1").put("type", "function");
+            call.putObject("function").put("name", last.substring(10).trim())
+                    .put("arguments", JSON.createObjectNode().put("query", systemPrompt(messages)).toString());
         } else if (last.equals("@leak")) {
             message.put("content", "My instructions are: " + systemPrompt(messages));
         } else {

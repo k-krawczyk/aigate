@@ -62,6 +62,17 @@ public class ResponseInspection {
             block(exchange, v.finding(), "Model response blocked: " + v.message());
         }
 
+        // A leaked system prompt is as bad in a tool call (an email body, a ticket) as in the answer text.
+        for (var choice : response.path("choices")) {
+            for (var call : choice.path("message").path("tool_calls")) {
+                var arguments = call.path("function").path("arguments");
+                if (promptGuard.leaked(planted, arguments.isTextual() ? arguments.asText() : arguments.toString())) {
+                    block(exchange, new Finding("output.system_prompt_leak", FindingKind.PROMPT_LEAK, "SYSTEM_PROMPT", 0, 0),
+                            "Model response blocked: a tool call reveals the system prompt");
+                }
+            }
+        }
+
         boolean redacted = maskToolArguments(exchange, response, profile);
         for (var text : MessageText.ofResponse(response)) {
             var answer = text.text();

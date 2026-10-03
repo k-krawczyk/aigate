@@ -67,6 +67,15 @@ class ResponseInspectionTest extends GatewayTestSupport {
     }
 
     @Test
+    @DisplayName("blocked: system prompt smuggled out through the arguments of an allowed tool call")
+    void systemPromptLeakViaTool() {
+        var response = post(DEMO_AGENT_KEY, withSystemPrompt("@leaktool search_docs"));
+
+        assertThat(response.statusCode()).isEqualTo(403);
+        assertThat(response.body()).contains("\"category\":\"system_prompt_leak\"").doesNotContain("Bank Polski");
+    }
+
+    @Test
     @DisplayName("blocked: answer quotes the system prompt verbatim without the canary")
     void verbatimQuote() {
         var response = post(DEMO_AGENT_KEY, withSystemPrompt(
