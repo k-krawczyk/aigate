@@ -28,13 +28,15 @@ public class H2AuditSink implements AuditSink {
         jdbc.update("""
                 INSERT INTO audit_event (id, ts, event_type, client_id, subject, on_behalf_of, auth_method, model,
                     direction, decision, category, owasp, rules, excerpt, http_status, prompt_tokens,
-                    completion_tokens, cost_usd, latency_ms, step_micros, policy_revision, detail)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    completion_tokens, cost_usd, latency_ms, step_micros, policy_revision, detail, profile,
+                    caller_groups)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 e.id(), Timestamp.from(e.timestamp()), e.eventType(), e.clientId(), e.subject(), e.onBehalfOf(),
                 e.authMethod(), e.model(), e.direction(), e.decision(), e.category(), e.owasp(), e.rules(),
                 e.excerpt(), e.httpStatus(), e.promptTokens(), e.completionTokens(), e.costUsd(), e.latencyMs(),
-                toJson(e), e.policyRevision(), e.detail());
+                toJson(e), e.policyRevision(), e.detail(), e.profile(),
+                e.groups() == null ? null : String.join(",", e.groups()));
     }
 
     private static String toJson(AuditEvent e) {

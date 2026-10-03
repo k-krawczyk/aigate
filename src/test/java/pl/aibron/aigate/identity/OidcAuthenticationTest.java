@@ -142,6 +142,12 @@ class OidcAuthenticationTest extends GatewayTestSupport {
         assertThat(plain.statusCode()).isEqualTo(200);
         assertThat(finance.statusCode()).isEqualTo(403);
         assertThat(finance.body()).contains("\"category\":\"sensitive_data\"");
+        // The SOC must be able to explain the different outcome: same agent, different person, different profile.
+        var plainRow = awaitRow(plain.headers().firstValue("X-AIGate-Request-Id").orElseThrow());
+        var financeRow = awaitRow(finance.body().replaceAll("(?s).*\"audit_id\":\"([^\"]+)\".*", "$1"));
+        assertThat(plainRow).containsEntry("PROFILE", "balanced").containsEntry("CALLER_GROUPS", "ai-staff");
+        assertThat(financeRow).containsEntry("PROFILE", "strict").containsEntry("CALLER_GROUPS", "ai-staff,ai-finance")
+                .containsEntry("AUTH_METHOD", "oidc:corporate");
     }
 
     @Test

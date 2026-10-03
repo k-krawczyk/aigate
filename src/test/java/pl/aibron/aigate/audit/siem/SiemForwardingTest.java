@@ -167,7 +167,8 @@ class SiemForwardingTest extends GatewayTestSupport {
                 "cs1=LLM02", "cs2=pii.pesel", "msg=client PESEL [PESEL]").doesNotContain("44051401359");
 
         var json = next(TCP, "sensitive_data");
-        assertThat(json).contains("\"decision\":\"BLOCK\"", "\"client_id\":\"finance-app\"").doesNotContain("44051401359");
+        assertThat(json).contains("\"decision\":\"BLOCK\"", "\"client_id\":\"finance-app\"", "\"profile\":\"strict\"",
+                "\"auth_method\":\"api_key\"", "\"policy_revision\":").doesNotContain("44051401359");
 
         var hec = next(HEC, "sensitive_data");
         assertThat(hec).startsWith("Splunk test-hec-token ").contains("\"sourcetype\":\"aigate:audit\"")

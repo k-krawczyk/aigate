@@ -115,7 +115,9 @@ public class AuditRoute extends RouteBuilder {
                 started == null ? null : (System.nanoTime() - started) / 1_000_000.0,
                 steps == null ? null : new LinkedHashMap<>(steps),
                 exchange.getProperty(ExchangeKeys.POLICY_REVISION, Integer.class),
-                detail(rejection, exchange.getProperty(ExchangeKeys.SEMANTIC_NOTE, String.class)));
+                detail(rejection, exchange.getProperty(ExchangeKeys.SEMANTIC_NOTE, String.class)),
+                exchange.getProperty(ExchangeKeys.PROFILE_NAME, String.class),
+                identity == null || identity.groups().isEmpty() ? null : identity.groups());
     }
 
     private static String rules(List<Finding> findings, String semanticRule) {
@@ -141,7 +143,7 @@ public class AuditRoute extends RouteBuilder {
                 null, null, null, null, null, null,
                 outcome.applied() ? "APPLIED" : "REJECTED", "policy", null, null, null, null,
                 null, null, null, null, null, revision,
-                outcome.errors().isEmpty() ? null : String.join("; ", outcome.errors()));
+                outcome.errors().isEmpty() ? null : String.join("; ", outcome.errors()), null, null);
     }
 
     private static JsonNode usageOf(String body) {

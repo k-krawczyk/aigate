@@ -123,7 +123,12 @@ public class SiemSink implements AuditSink {
         m.put("timestamp", e.timestamp().toString());
         m.put("event_type", e.eventType());
         m.put("client_id", e.clientId());
+        m.put("subject", e.subject());
         m.put("on_behalf_of", e.onBehalfOf());
+        m.put("auth_method", e.authMethod());
+        m.put("profile", e.profile());
+        m.put("groups", e.groups());
+        m.put("policy_revision", e.policyRevision());
         m.put("model", e.model());
         m.put("decision", e.decision());
         m.put("category", e.category());

@@ -1,6 +1,7 @@
 package pl.aibron.aigate.audit.siem;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.DisplayName;
@@ -16,7 +17,8 @@ class CefFormatterTest {
     private static AuditEvent blocked(String excerpt) {
         return new AuditEvent("e1", Instant.parse("2026-10-03T12:00:00Z"), AuditEvent.CHAT, "finance-app", "finance-app",
                 null, "api_key", "llama3.2:3b", "request", "BLOCK", "sensitive_data", "LLM02", "pii.pesel", excerpt,
-                403, null, null, null, 4.2, Map.of("parse", 100L), 3, "Request blocked by policy: contains PESEL");
+                403, null, null, null, 4.2, Map.of("parse", 100L), 3, "Request blocked by policy: contains PESEL",
+                "strict", List.of("ai-staff", "ai-finance"));
     }
 
     @Test
@@ -33,7 +35,9 @@ class CefFormatterTest {
         var cef = CefFormatter.cef(blocked("client [PESEL]"));
 
         assertThat(cef).contains("act=BLOCK", "suser=finance-app", "cs1Label=owasp cs1=LLM02", "cs2=pii.pesel",
-                "outcome=403", "msg=client [PESEL]", "externalId=e1");
+                "outcome=403", "msg=client [PESEL]", "externalId=e1", "cs5Label=profile cs5=strict",
+                "cs6Label=groups cs6=ai-staff,ai-finance", "flexString1Label=authMethod flexString1=api_key",
+                "cn3Label=policyRevision cn3=3");
     }
 
     @Test

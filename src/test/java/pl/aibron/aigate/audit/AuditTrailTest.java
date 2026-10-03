@@ -28,7 +28,8 @@ class AuditTrailTest extends GatewayTestSupport {
 
         assertThat(row).containsEntry("CLIENT_ID", "demo-agent").containsEntry("MODEL", "llama3.2:3b")
                 .containsEntry("DECISION", "ALLOW").containsEntry("HTTP_STATUS", 200)
-                .containsEntry("PROMPT_TOKENS", 10L).containsEntry("COMPLETION_TOKENS", 5L);
+                .containsEntry("PROMPT_TOKENS", 10L).containsEntry("COMPLETION_TOKENS", 5L)
+                .containsEntry("PROFILE", "balanced").containsEntry("AUTH_METHOD", "api_key");
         assertThat((Double) row.get("COST_USD")).isPositive();
         assertThat((String) row.get("STEP_MICROS")).contains("authenticate", "request_rules", "upstream");
     }

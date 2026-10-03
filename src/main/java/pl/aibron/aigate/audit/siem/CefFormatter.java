@@ -39,6 +39,10 @@ public final class CefFormatter {
         custom(ext, "cs2", "rules", e.rules());
         custom(ext, "cs3", "model", e.model());
         custom(ext, "cs4", "direction", e.direction());
+        custom(ext, "cs5", "profile", e.profile());
+        custom(ext, "cs6", "groups", e.groups() == null ? null : String.join(",", e.groups()));
+        custom(ext, "flexString1", "authMethod", e.authMethod());
+        custom(ext, "cn3", "policyRevision", e.policyRevision());
         custom(ext, "cn1", "latencyMs", e.latencyMs() == null ? null : Math.round(e.latencyMs()));
         custom(ext, "cn2", "tokens", e.promptTokens() == null ? null
                 : e.promptTokens() + (e.completionTokens() == null ? 0 : e.completionTokens()));
