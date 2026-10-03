@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-03.1",
+  "version": "2026-10-03.2",
   "source": "AIGate curated feed",
   "signatures": [
     {
@@ -28,6 +28,15 @@
       "severity": "high",
       "pattern": "!!python/(?:object(?:/apply|/new)?|module|name):",
       "reference": "CVE-2017-18342, CVE-2020-1747 (PyYAML full_load / unsafe load)"
+    },
+    {
+      "id": "AIG-0015",
+      "name": "Java serialized object stream (base64 or hex)",
+      "category": "unsafe_deserialization",
+      "owasp": "LLM03",
+      "severity": "high",
+      "pattern": "(?i)(?:\\brO0AB[A-Za-z0-9+/=]{4,}|\\baced0005[0-9a-f]{0,}|ObjectInputStream\\b.{0,80}\\breadObject\\()",
+      "reference": "Java deserialization gadget chains (ysoserial); CVE-2015-4852 and successors"
     },
     {
       "id": "AIG-0004",

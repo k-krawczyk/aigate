@@ -35,8 +35,14 @@ public class RiskScorer {
                     "(?i)\\b(you are now|from now on you are|act as|pretend (to be|you are)|roleplay as)\\b.{0,40}\\b(DAN|unrestricted|unfiltered|jailbroken|no (rules|restrictions|limits)|evil)")),
             new Rule("injection.known_jailbreak", 0.5, Pattern.compile(
                     "(?i)\\b(do anything now|developer mode (enabled|on)|jailbreak mode|AIM mode|STAN mode|godmode)\\b")),
-            new Rule("injection.fake_system_turn", 0.4, Pattern.compile(
+            new Rule("injection.disable_safety", 0.6, Pattern.compile(
+                    "(?i)\\b(disabled?|disabling|turn(ed)? off|bypass(ed|ing)?|without)\\b.{0,30}\\b(safety|filter(s|ing)?|guardrails|content polic(y|ies)|safety polic(y|ies))\\b")),
+            new Rule("exfiltration.forward_conversation", 0.5, Pattern.compile(
+                    "(?i)\\b(forward|send|post|upload|exfiltrate|leak)\\b.{0,40}\\b(conversation|chat history|messages|context|system prompt|credentials)\\b.{0,40}(https?://|\\S+@\\S+)")),
+            new Rule("injection.fake_system_turn", 0.5, Pattern.compile(
                     "(?im)^\\s*(###\\s*)?(system|assistant)\\s*:|<\\|im_start\\|>|\\[INST\\]|<\\|system\\|>")),
+            new Rule("injection.hidden_html_comment", 0.6, Pattern.compile(
+                    "(?is)<!--.{0,300}\\b(assistant|system|ignore|instructions?|forward|send|exfiltrate)\\b.{0,300}-->")),
             new Rule("exfiltration.markdown_image", 0.5, Pattern.compile(
                     "!\\[[^\\]]*\\]\\(https?://[^)\\s]+\\?[^)\\s]*=")),
             new Rule("obfuscation.base64_blob", 0.3, Pattern.compile("[A-Za-z0-9+/]{60,}={0,2}")),

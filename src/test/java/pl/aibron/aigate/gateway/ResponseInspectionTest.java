@@ -24,7 +24,9 @@ class ResponseInspectionTest extends GatewayTestSupport {
 
     /** Makes the stub model produce this text without it appearing in the request. */
     private static String say(String text) {
-        return "@say64 " + java.util.Base64.getEncoder().encodeToString(text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        var key = Integer.toHexString(text.hashCode());
+        StubUpstream.FIXTURES.put(key, text);
+        return "@fixture " + key;
     }
 
     @Test

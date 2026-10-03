@@ -12,8 +12,8 @@ import org.springframework.context.annotation.Bean;
  * <ul>
  *   <li>{@code @tool <name> <json-arguments>}: answer with a tool call</li>
  *   <li>{@code @say <text>}: answer with this text verbatim</li>
- *   <li>{@code @say64 <base64>}: answer with the decoded text, for answers whose content would already be caught
- *       on the request side</li>
+ *   <li>{@code @fixture <key>}: answer with text registered in {@link #FIXTURES}, for answers whose content
+ *       would already be caught if it appeared in the request</li>
  *   <li>{@code @leak}: answer with the full system prompt the model received</li>
  * </ul>
  */
@@ -21,6 +21,8 @@ import org.springframework.context.annotation.Bean;
 public class StubUpstream {
 
     public static final String MODEL_REPLY_PREFIX = "stub reply to: ";
+
+    public static final java.util.Map<String, String> FIXTURES = new java.util.concurrent.ConcurrentHashMap<>();
 
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -52,9 +54,8 @@ public class StubUpstream {
             message.put("content", "");
             var call = message.putArray("tool_calls").addObject().put("id", "call_1").put("type", "function");
             call.putObject("function").put("name", parts[0]).put("arguments", parts.length > 1 ? parts[1] : "{}");
-        } else if (last.startsWith("@say64 ")) {
-            message.put("content", new String(java.util.Base64.getDecoder().decode(last.substring(7).trim()),
-                    java.nio.charset.StandardCharsets.UTF_8));
+        } else if (last.startsWith("@fixture ")) {
+            message.put("content", FIXTURES.get(last.substring(9).trim()));
         } else if (last.startsWith("@say ")) {
             message.put("content", last.substring(5));
         } else if (last.equals("@leak")) {

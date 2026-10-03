@@ -20,6 +20,10 @@ public class PasswordAssignmentDetector extends RegexDetector {
 
     private static final double MIN_ENTROPY_BITS_PER_CHAR = 3.0;
 
+    /** Values that documentation uses in place of a real secret. */
+    private static final Pattern PLACEHOLDER = Pattern.compile(
+            "(?i)^(?:<[^>]*>|\\$\\{[^}]*}|\\{\\{[^}]*}}|x{4,}|\\*{4,}|.*(?:your|example|changeme|placeholder|redacted|dummy).*)$");
+
     public PasswordAssignmentDetector() {
         super("secret.password_assignment", FindingKind.SECRET, "SECRET", Pattern.compile(
                 "(?i)\\b(?:password|passwd|pwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret)"
@@ -33,7 +37,8 @@ public class PasswordAssignmentDetector extends RegexDetector {
 
     @Override
     protected boolean isValid(Matcher match) {
-        return shannonEntropy(match.group(1)) >= MIN_ENTROPY_BITS_PER_CHAR;
+        var value = match.group(1);
+        return !PLACEHOLDER.matcher(value).matches() && shannonEntropy(value) >= MIN_ENTROPY_BITS_PER_CHAR;
     }
 
     static double shannonEntropy(String value) {

@@ -61,7 +61,7 @@ public class ResponseInspection {
             block(exchange, v.finding(), "Model response blocked: " + v.message());
         }
 
-        boolean redacted = false;
+        boolean redacted = maskToolArguments(exchange, response, profile);
         for (var text : MessageText.ofResponse(response)) {
             var answer = text.text();
             if (promptGuard.leaked(planted, answer)) {
@@ -92,6 +92,42 @@ public class ResponseInspection {
         if (redacted) {
             exchange.getMessage().setBody(response.toString());
         }
+    }
+
+    /**
+     * An agent hands tool arguments to systems outside the conversation (search indexes, ticketing, email), so PII
+     * and secrets there follow the same profile actions as in the answer text.
+     */
+    private boolean maskToolArguments(Exchange exchange, ObjectNode response, pl.aibron.aigate.policy.Profile profile) {
+        boolean masked = false;
+        for (var choice : response.path("choices")) {
+            for (var call : choice.path("message").path("tool_calls")) {
+                if (!(call.path("function") instanceof ObjectNode function) || !function.path("arguments").isTextual()) {
+                    continue;
+                }
+                var arguments = function.path("arguments").asText();
+                var findings = inspector.scan(arguments).stream()
+                        .filter(f -> f.kind() == FindingKind.PII || f.kind() == FindingKind.SECRET).toList();
+                if (findings.isEmpty()) {
+                    continue;
+                }
+                addFindings(exchange, findings);
+                var blocking = findings.stream()
+                        .filter(f -> ContentInspection.actionFor(profile, f.kind()) == Action.BLOCK).toList();
+                if (!blocking.isEmpty()) {
+                    block(exchange, blocking.getFirst(),
+                            "Model response blocked: tool call arguments contain " + blocking.getFirst().label());
+                }
+                var toRedact = findings.stream()
+                        .filter(f -> ContentInspection.actionFor(profile, f.kind()) == Action.REDACT).toList();
+                if (!toRedact.isEmpty()) {
+                    function.put("arguments", TextInspector.mask(arguments, toRedact, f -> SILENT_MASK));
+                    ContentInspection.markDecision(exchange, Decision.REDACT, toRedact.getFirst(), "response");
+                    masked = true;
+                }
+            }
+        }
+        return masked;
     }
 
     private static void block(Exchange exchange, Finding finding, String message) {
