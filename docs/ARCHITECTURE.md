@@ -248,6 +248,16 @@ Implemented: H2 (dashboard), Micrometer (Prometheus), and `SiemSink` with syslog
 
 The Kafka producer is bounded so a broker outage cannot back up the gateway: `max.block.ms` 2 s, delivery timeout 10 s, 8 MB buffer, asynchronous sends whose outcome feeds `aigate.audit.sink.sent` and `aigate.audit.sink.failures`. Records are keyed by `client_id`, so one client's events stay ordered on one partition.
 
+### Secrets
+
+The policy never holds a secret. It names an environment variable instead: `token_env` for the Splunk HEC token, `sasl_password_env` for the Kafka SASL password; API keys appear only as SHA-256 hashes. That is the shape every platform secret store already delivers:
+
+- **AWS**: Secrets Manager or SSM Parameter Store referenced in the ECS task definition `secrets` block, or synced into a Kubernetes Secret by External Secrets Operator; the container sees a plain environment variable.
+- **HashiCorp Vault**: Vault Agent or the Vault Secrets Operator renders the value into the environment of the gateway container.
+- **Kubernetes**: a `Secret` mounted with `envFrom` / `valueFrom.secretKeyRef`.
+
+Rotation is a restart of the gateway (or a rolling restart of the replicas); the policy file does not change. The variable names are part of the policy, so a reviewer of the policy sees which secrets a deployment needs without seeing them.
+
 ## 9. Scalability (what changes beyond a hackathon)
 
 | Today | Production path |
