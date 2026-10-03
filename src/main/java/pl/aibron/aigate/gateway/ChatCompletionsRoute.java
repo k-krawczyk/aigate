@@ -69,7 +69,8 @@ public class ChatCompletionsRoute extends RouteBuilder {
                 .process(budgetGuard::charge)
                 .process(timed("response_rules", responseInspection::inspectResponse))
                 .setHeader("X-AIGate-Request-Id", exchangeProperty(ExchangeKeys.REQUEST_ID))
-                .wireTap("direct:audit");
+                .wireTap("direct:audit")
+                .process(StreamAdapter::toEventStream);
 
         from("direct:upstream").routeId("upstream")
                 // Inbound HTTP headers (Authorization, Host, CamelHttp*) must never leak to the model server.

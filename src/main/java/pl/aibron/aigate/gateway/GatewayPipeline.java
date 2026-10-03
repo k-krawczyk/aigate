@@ -43,6 +43,7 @@ public class GatewayPipeline {
             if (body == null || body.isBlank() || !(JSON.readTree(body) instanceof ObjectNode request)) {
                 throw new GatewayRejection(400, "invalid_request", "request", "Request body must be a JSON object");
             }
+            StreamAdapter.captureStreamFlag(exchange, request);
             exchange.setProperty(ExchangeKeys.REQUEST, request);
         } catch (JsonProcessingException e) {
             throw new GatewayRejection(400, "invalid_request", "request", "Request body is not valid JSON");

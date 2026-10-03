@@ -21,6 +21,19 @@ class PassThroughTest extends GatewayTestSupport {
     }
 
     @Test
+    @DisplayName("allowed: stream=true gets the checked answer as one SSE chunk and [DONE]")
+    void streamingClient() {
+        var response = post(DEMO_AGENT_KEY, """
+                {"model":"llama3.2:3b","stream":true,"messages":[{"role":"user","content":"client 44051401359"}]}
+                """);
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.headers().firstValue("Content-Type").orElse("")).startsWith("text/event-stream");
+        assertThat(response.body()).startsWith("data: {").contains("chat.completion.chunk", "[PESEL]")
+                .doesNotContain("44051401359").endsWith("data: [DONE]\n\n");
+    }
+
+    @Test
     @DisplayName("unavailable: model server down gives 503 in OpenAI error format, not a stack trace")
     void upstreamDown() {
         var response = chat(DEMO_AGENT_KEY, "llama3.2:3b", "@upstream-down");

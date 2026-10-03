@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-03.2",
+  "version": "2026-10-03.3",
   "source": "AIGate curated feed",
   "signatures": [
     {
@@ -136,6 +136,24 @@
       "severity": "high",
       "pattern": "(?is)\\bDAN\\b.{0,80}do anything now",
       "reference": "DAN prompt family, 2022-2024"
+    },
+    {
+      "id": "AIG-0016",
+      "name": "pickle.load or weights_only=False on model data",
+      "category": "unsafe_deserialization",
+      "owasp": "LLM03",
+      "severity": "high",
+      "pattern": "(?:\\bpickle\\.loads?\\(|\\bweights_only\\s*=\\s*False\\b)",
+      "reference": "Python pickle documentation; contributed by the team test corpus (SIG-SUP-002)"
+    },
+    {
+      "id": "AIG-0017",
+      "name": "Pickle-format model file fetched from a URL",
+      "category": "supply_chain",
+      "owasp": "LLM03",
+      "severity": "medium",
+      "pattern": "(?i)https?://\\S+\\.(?:pkl|pickle|pt|pth|ckpt|joblib)\\b",
+      "reference": "Pickle-based model formats execute code on load; prefer safetensors. Team test corpus (SIG-SUP-003)"
     }
   ]
 }

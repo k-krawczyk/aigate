@@ -2,7 +2,7 @@
 
 AIGate is an OpenAI-compatible gateway. A client changes one setting, its base URL, and from then on every chat completion, tool definition and tool call goes through the gateway. The gateway checks it against a central policy, charges it to a budget and writes an audit event. There is no SDK to install and no change to client code.
 
-Status: reviewed concept, nothing implemented yet.
+Status: implemented. Measured numbers are in the README; extension points in section 8 are interfaces with documented configuration.
 
 ## 1. Context
 
@@ -175,7 +175,8 @@ Client-level budgets override the global ones. Profiles are the strictness level
 - Guards run in parallel, so the semantic cost is max(guard A, guard B), not the sum.
 - Pre-compiled regex set, rebuilt only on policy or feed reload.
 - Micrometer timer per pipeline step, p50 / p95 / p99 on the dashboard and on `/actuator/prometheus`.
-- Telemetry answers the judges' question directly: "how much latency does AIGate add on top of the model?". Target to be measured, not promised: rules-only path well under 10 ms.
+- Telemetry answers the question "how much latency does AIGate add on top of the model?". Measured on an M2 Max: about 1 ms on the rules-only path, about 100 ms when the guards run, against 500 ms to several seconds for the model call.
+- Guard models are pinged every 4 minutes so Ollama keeps them loaded; a cold load costs seconds.
 
 ## 8. Extension points: corporate IdP and SIEM
 

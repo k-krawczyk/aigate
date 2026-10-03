@@ -1,11 +1,11 @@
 # Demo scenarios — AI Control Layer
 
-All values below are fabricated test data. Commands assume the gateway on `localhost:8080`, client key `demo-key-1`, model `llama3.2:3b`.
+All values below are fabricated test data. Commands assume the gateway on `localhost:8080`, client key `aigate-demo-agent-key` (see the README for the other demo keys), model `llama3.2:3b`.
 
 ```bash
 ask() {  # usage: ask "prompt"
   curl -s http://localhost:8080/v1/chat/completions \
-    -H "Authorization: Bearer ${KEY:-demo-key-1}" -H "Content-Type: application/json" \
+    -H "Authorization: Bearer ${KEY:-aigate-demo-agent-key}" -H "Content-Type: application/json" \
     -d "$(jq -n --arg p "$1" --arg m "${MODEL:-llama3.2:3b}" '{model:$m,messages:[{role:"user",content:$p}]}')" | jq .
 }
 ```

@@ -1,0 +1,42 @@
+# Gateway and signature feed in containers; Ollama runs on the host (on macOS it only gets the GPU outside Docker).
+services:
+  aigate:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      AIGATE_UPSTREAM_URI: http://host.docker.internal:11434/v1/chat/completions?throwExceptionOnFailure=false
+      AIGATE_GUARDS_URI: http://host.docker.internal:11434/v1/chat/completions
+      AIGATE_SIGNATURES_FEED_URL: http://signature-feed/signatures.json
+      AIGATE_DB_URL: jdbc:h2:file:/app/data/aigate
+      AIGATE_POLICY_DIR: /app/policy
+    volumes:
+      # The directory, not the file: editors that save by rename would leave a single-file mount on the old inode.
+      - ./policy:/app/policy
+      - aigate-data:/app/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - signature-feed
+
+  # Plays the externally managed signature feed. Edit feed/signatures.json and bump "version".
+  signature-feed:
+    image: nginx:1.27-alpine
+    ports:
+      - "8090:80"
+    volumes:
+      - ./feed:/usr/share/nginx/html:ro
+
+  # docker compose --profile test run --rm tests   (no JDK needed on the host, no Ollama needed at all)
+  tests:
+    profiles: ["test"]
+    image: eclipse-temurin:21-jdk
+    working_dir: /src
+    command: ["./mvnw", "-B", "test"]
+    volumes:
+      - .:/src
+      - maven-cache:/root/.m2
+
+volumes:
+  aigate-data:
+  maven-cache:

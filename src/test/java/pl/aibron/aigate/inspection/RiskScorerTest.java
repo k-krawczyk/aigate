@@ -51,7 +51,7 @@ class RiskScorerTest {
     @org.junit.jupiter.api.Test
     @DisplayName("flagged: zero-width characters used to hide instructions")
     void invisibleChars() {
-        assertThat(scorer.assess("hello​ignore​me").signals())
+        assertThat(scorer.assess("hello\u200Bignore\u200Bme").signals())
                 .extracting(RiskScorer.Signal::id).contains("obfuscation.invisible_chars");
     }
 }
