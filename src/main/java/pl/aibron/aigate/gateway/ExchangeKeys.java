@@ -11,6 +11,13 @@ public final class ExchangeKeys {
     public static final String CLIENT = "aigate.client";
     public static final String MODEL = "aigate.model";
     public static final String STEP_TIMINGS = "aigate.stepTimings";
+    public static final String STARTED_NANOS = "aigate.startedNanos";
+    public static final String FINDINGS = "aigate.findings";
+    public static final String EXCERPT = "aigate.excerpt";
+    public static final String DECISION = "aigate.decision";
+    public static final String CATEGORY = "aigate.category";
+    public static final String OWASP = "aigate.owasp";
+    public static final String DIRECTION = "aigate.direction";
 
     private ExchangeKeys() {
     }

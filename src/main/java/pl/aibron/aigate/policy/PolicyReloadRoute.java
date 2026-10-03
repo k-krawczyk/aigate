@@ -21,11 +21,10 @@ public class PolicyReloadRoute extends RouteBuilder {
         fromF("file-watch:%s?events=CREATE,MODIFY&recursive=false&antInclude=%s",
                 store.file().getParent().toAbsolutePath(), PolicyStore.FILE_NAME)
                 .routeId("policy-reload")
-                .process(exchange -> exchange.getMessage().setBody(store.reload()))
-                .to("direct:policy-reloaded");
-
-        // Audit hooks into this endpoint once the audit store exists.
-        from("direct:policy-reloaded").routeId("policy-reloaded")
-                .log("Policy reload applied=${body.applied} errors=${body.errors}");
+                .process(exchange -> {
+                    exchange.getMessage().setBody(store.reload());
+                    exchange.getMessage().setHeader("revision", store.active().revision());
+                })
+                .to("direct:audit-policy-reload");
     }
 }

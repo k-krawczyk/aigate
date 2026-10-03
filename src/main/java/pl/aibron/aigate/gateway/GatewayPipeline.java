@@ -32,6 +32,7 @@ public class GatewayPipeline {
 
     public void begin(Exchange exchange) {
         var active = policyStore.active();
+        exchange.setProperty(ExchangeKeys.STARTED_NANOS, System.nanoTime());
         exchange.setProperty(ExchangeKeys.REQUEST_ID, UUID.randomUUID().toString());
         exchange.setProperty(ExchangeKeys.POLICY, active.policy());
         exchange.setProperty(ExchangeKeys.POLICY_REVISION, active.revision());

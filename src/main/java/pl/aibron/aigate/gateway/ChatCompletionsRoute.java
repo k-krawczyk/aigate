@@ -13,16 +13,19 @@ public class ChatCompletionsRoute extends RouteBuilder {
     private static final ObjectMapper JSON = new ObjectMapper();
 
     private final GatewayPipeline pipeline;
+    private final ContentInspection contentInspection;
 
-    public ChatCompletionsRoute(GatewayPipeline pipeline) {
+    public ChatCompletionsRoute(GatewayPipeline pipeline, ContentInspection contentInspection) {
         this.pipeline = pipeline;
+        this.contentInspection = contentInspection;
     }
 
     @Override
     public void configure() {
         onException(GatewayRejection.class)
                 .handled(true)
-                .process(ChatCompletionsRoute::writeRejection);
+                .process(ChatCompletionsRoute::writeRejection)
+                .wireTap("direct:audit");
 
         rest("/v1")
                 .post("/chat/completions")
@@ -35,10 +38,12 @@ public class ChatCompletionsRoute extends RouteBuilder {
                 .process(timed("parse", pipeline::begin))
                 .process(timed("authenticate", pipeline::authenticate))
                 .process(timed("model_allowlist", pipeline::authorizeModel))
+                .process(timed("request_rules", contentInspection::inspectRequest))
                 .process(GatewayPipeline.startStep("upstream"))
                 .to("direct:upstream")
                 .process(GatewayPipeline.endStep("upstream"))
-                .setHeader("X-AIGate-Request-Id", exchangeProperty(ExchangeKeys.REQUEST_ID));
+                .setHeader("X-AIGate-Request-Id", exchangeProperty(ExchangeKeys.REQUEST_ID))
+                .wireTap("direct:audit");
 
         from("direct:upstream").routeId("upstream")
                 // Inbound HTTP headers (Authorization, Host, CamelHttp*) must never leak to the model server.
@@ -53,6 +58,11 @@ public class ChatCompletionsRoute extends RouteBuilder {
 
     private static void writeRejection(Exchange exchange) throws Exception {
         var rejection = exchange.getProperty(Exchange.EXCEPTION_CAUGHT, GatewayRejection.class);
+        exchange.setProperty(ExchangeKeys.DECISION, Decision.BLOCK);
+        if (exchange.getProperty(ExchangeKeys.CATEGORY) == null) {
+            exchange.setProperty(ExchangeKeys.CATEGORY, rejection.category());
+            exchange.setProperty(ExchangeKeys.DIRECTION, "request");
+        }
         var error = JSON.createObjectNode();
         error.put("message", rejection.getMessage());
         error.put("type", rejection.openAiType());

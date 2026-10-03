@@ -5,6 +5,14 @@ spring:
     virtual:
       enabled: true
 
+  datasource:
+    url: ${AIGATE_DB_URL:jdbc:h2:file:./data/aigate}
+    username: sa
+    password: ""
+  sql:
+    init:
+      mode: always
+
 server:
   port: 8080
 
