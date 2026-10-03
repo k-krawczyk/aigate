@@ -106,7 +106,8 @@ public class AuditRoute extends RouteBuilder {
                 decision.name(),
                 exchange.getProperty(ExchangeKeys.CATEGORY, String.class),
                 exchange.getProperty(ExchangeKeys.OWASP, String.class),
-                rules(findings, exchange.getProperty(ExchangeKeys.SEMANTIC_RULE, String.class)),
+                rules(findings, exchange.getProperty(ExchangeKeys.SEMANTIC_RULE, String.class),
+                        exchange.getProperty(ExchangeKeys.AUTH_RULE, String.class)),
                 exchange.getProperty(ExchangeKeys.EXCERPT, String.class),
                 status == null ? 200 : status,
                 promptTokens,
@@ -115,12 +116,13 @@ public class AuditRoute extends RouteBuilder {
                 started == null ? null : (System.nanoTime() - started) / 1_000_000.0,
                 steps == null ? null : new LinkedHashMap<>(steps),
                 exchange.getProperty(ExchangeKeys.POLICY_REVISION, Integer.class),
-                detail(rejection, exchange.getProperty(ExchangeKeys.SEMANTIC_NOTE, String.class)),
+                detail(rejection, exchange.getProperty(ExchangeKeys.SEMANTIC_NOTE, String.class),
+                        exchange.getProperty(ExchangeKeys.AUTH_DETAIL, String.class)),
                 exchange.getProperty(ExchangeKeys.PROFILE_NAME, String.class),
                 identity == null || identity.groups().isEmpty() ? null : identity.groups());
     }
 
-    private static String rules(List<Finding> findings, String semanticRule) {
+    private static String rules(List<Finding> findings, String semanticRule, String authRule) {
         var ids = new java.util.ArrayList<String>();
         if (findings != null) {
             findings.stream().map(Finding::detector).distinct().forEach(ids::add);
@@ -128,14 +130,24 @@ public class AuditRoute extends RouteBuilder {
         if (semanticRule != null) {
             ids.add(semanticRule);
         }
+        if (authRule != null) {
+            ids.add(authRule);
+        }
         return ids.isEmpty() ? null : String.join(",", ids);
     }
 
-    private static String detail(Exception rejection, String semanticNote) {
-        if (rejection == null) {
-            return semanticNote;
+    private static String detail(Exception rejection, String semanticNote, String authDetail) {
+        var parts = new java.util.ArrayList<String>();
+        if (rejection != null) {
+            parts.add(rejection.getMessage());
         }
-        return semanticNote == null ? rejection.getMessage() : rejection.getMessage() + " | " + semanticNote;
+        if (authDetail != null) {
+            parts.add(authDetail);
+        }
+        if (semanticNote != null) {
+            parts.add(semanticNote);
+        }
+        return parts.isEmpty() ? null : String.join(" | ", parts);
     }
 
     static AuditEvent fromReload(PolicyStore.ReloadOutcome outcome, Integer revision) {

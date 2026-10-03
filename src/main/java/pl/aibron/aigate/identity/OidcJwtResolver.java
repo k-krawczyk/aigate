@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -45,24 +44,35 @@ public class OidcJwtResolver implements IdentityResolver {
     private final Map<String, JWKSource<SecurityContext>> jwkSources = new ConcurrentHashMap<>();
 
     @Override
-    public Optional<CallerIdentity> resolve(String authorizationHeader, Policy policy) {
+    public Resolution resolve(String authorizationHeader, Policy policy) {
         if (authorizationHeader == null || !authorizationHeader.regionMatches(true, 0, BEARER, 0, BEARER.length())) {
-            return Optional.empty();
+            return Resolution.notApplicable();
         }
         var token = authorizationHeader.substring(BEARER.length()).trim();
-        if (token.chars().filter(c -> c == '.').count() != 2 || policy.identity().oidc().isEmpty()) {
-            return Optional.empty();
+        if (!IdentityResolver.looksLikeJwt(token)) {
+            return Resolution.notApplicable();
         }
+        if (policy.identity().oidc().isEmpty()) {
+            return Resolution.rejected("auth.jwt_invalid", "token presented but no identity provider is configured");
+        }
+        String reason = null;
         for (var provider : policy.identity().oidc()) {
+            JWTClaimsSet claims;
             try {
-                var claims = processor(provider).process(token, null);
-                return Optional.ofNullable(toIdentity(provider, claims, policy));
+                claims = processor(provider).process(token, null);
             } catch (Exception e) {
-                // Expected for every provider but the one that issued the token; logged for troubleshooting only.
+                // Expected for every provider but the issuer; the first reason is kept for the audit trail.
                 log.debug("Token rejected by provider {}: {}", provider.name(), e.getMessage());
+                reason = reason == null ? provider.name() + ": " + e.getMessage() : reason;
+                continue;
+            }
+            try {
+                return toResolution(provider, claims, policy);
+            } catch (java.text.ParseException e) {
+                return Resolution.rejected("auth.jwt_invalid", provider.name() + ": malformed claim " + e.getMessage());
             }
         }
-        return Optional.empty();
+        return Resolution.rejected("auth.jwt_invalid", reason);
     }
 
     private DefaultJWTProcessor<SecurityContext> processor(OidcProvider provider) throws Exception {
@@ -86,21 +96,25 @@ public class OidcJwtResolver implements IdentityResolver {
         return source;
     }
 
-    private static CallerIdentity toIdentity(OidcProvider provider, JWTClaimsSet claims, Policy policy)
-            throws Exception {
+    private static Resolution toResolution(OidcProvider provider, JWTClaimsSet claims, Policy policy)
+            throws java.text.ParseException {
         var clientId = claims.getStringClaim(provider.clientClaim());
-        if (clientId == null || policy.client(clientId).isEmpty()) {
-            log.debug("Valid token from {} for unknown client {}", provider.name(), clientId);
-            return null;
-        }
         var user = claims.getStringClaim(provider.userClaim());
         var groups = new ArrayList<String>();
         var rawGroups = claims.getClaim(provider.groupsClaim());
         if (rawGroups instanceof List<?> list) {
             list.forEach(g -> groups.add(String.valueOf(g)));
         }
-        return new CallerIdentity(clientId, claims.getSubject(), user != null && !user.equals(clientId) ? user : null,
-                groups, "oidc:" + provider.name(), strictestProfile(provider, groups, policy));
+        var identity = new CallerIdentity(clientId, claims.getSubject(),
+                user != null && !user.equals(clientId) ? user : null, groups, "oidc:" + provider.name(),
+                strictestProfile(provider, groups, policy));
+        if (clientId == null || policy.client(clientId).isEmpty()) {
+            // A real corporate identity using an agent nobody onboarded: the most useful signal for the SOC.
+            return Resolution.rejectedVerified("auth.client_not_onboarded",
+                    "valid " + provider.name() + " token for client '" + clientId + "', which is not in the policy",
+                    identity);
+        }
+        return Resolution.accepted(identity);
     }
 
     /**

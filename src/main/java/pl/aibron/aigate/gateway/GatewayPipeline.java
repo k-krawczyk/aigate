@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 
 import pl.aibron.aigate.identity.CallerIdentity;
 import pl.aibron.aigate.identity.IdentityResolver;
+import pl.aibron.aigate.identity.Resolution;
 import pl.aibron.aigate.policy.ClientSpec;
 import pl.aibron.aigate.policy.Policy;
 import pl.aibron.aigate.policy.PolicyStore;
@@ -53,11 +54,30 @@ public class GatewayPipeline {
     public void authenticate(Exchange exchange) {
         var policy = exchange.getProperty(ExchangeKeys.POLICY, Policy.class);
         var header = exchange.getMessage().getHeader("Authorization", String.class);
-        var identity = identityResolvers.stream()
-                .flatMap(r -> r.resolve(header, policy).stream())
-                .findFirst()
-                .orElseThrow(() -> new GatewayRejection(401, "invalid_api_key", "access_control",
-                        "Missing or invalid credentials"));
+        Resolution rejection = null;
+        CallerIdentity identity = null;
+        for (var resolver : identityResolvers) {
+            var resolution = resolver.resolve(header, policy);
+            if (resolution.isAccepted()) {
+                identity = resolution.identity();
+                break;
+            }
+            if (resolution.isRejected() && rejection == null) {
+                rejection = resolution;
+            }
+        }
+        if (identity == null) {
+            if (rejection == null) {
+                rejection = Resolution.rejected("auth.missing_credentials", "no Bearer credential in the request");
+            }
+            exchange.setProperty(ExchangeKeys.AUTH_RULE, rejection.rule());
+            exchange.setProperty(ExchangeKeys.AUTH_DETAIL, rejection.detail());
+            if (rejection.knownCaller() != null) {
+                exchange.setProperty(ExchangeKeys.IDENTITY, rejection.knownCaller());
+            }
+            // Same answer for every reason, so a caller cannot probe which part of a credential failed.
+            throw new GatewayRejection(401, "invalid_api_key", "access_control", "Missing or invalid credentials");
+        }
         var client = policy.client(identity.clientId()).orElseThrow();
         // An IdP group can tighten the client's profile for this caller, never loosen it.
         var profileName = client.profile();

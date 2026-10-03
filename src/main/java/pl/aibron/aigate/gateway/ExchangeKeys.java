@@ -27,6 +27,8 @@ public final class ExchangeKeys {
     public static final String RISK_SCORE = "aigate.riskScore";
     public static final String SEMANTIC_NOTE = "aigate.semanticNote";
     public static final String SEMANTIC_RULE = "aigate.semanticRule";
+    public static final String AUTH_RULE = "aigate.authRule";
+    public static final String AUTH_DETAIL = "aigate.authDetail";
 
     private ExchangeKeys() {
     }

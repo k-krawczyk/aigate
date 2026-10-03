@@ -64,7 +64,16 @@ class AuditTrailTest extends GatewayTestSupport {
         var id = response.body().replaceAll("(?s).*\"audit_id\":\"([^\"]+)\".*", "$1");
 
         assertThat(awaitRow(id)).containsEntry("CATEGORY", "access_control").containsEntry("HTTP_STATUS", 401)
-                .containsEntry("CLIENT_ID", null);
+                .containsEntry("CLIENT_ID", null).containsEntry("RULES", "auth.api_key_unknown");
+    }
+
+    @Test
+    @DisplayName("recorded: request without any credential, as auth.missing_credentials")
+    void missingCredentials() throws Exception {
+        var response = chat(null, "llama3.2:3b", "hello");
+        var id = response.body().replaceAll("(?s).*\"audit_id\":\"([^\"]+)\".*", "$1");
+
+        assertThat(awaitRow(id)).containsEntry("RULES", "auth.missing_credentials");
     }
 
     private Map<String, Object> awaitRow(String id) throws InterruptedException {

@@ -160,12 +160,19 @@ class OidcAuthenticationTest extends GatewayTestSupport {
     }
 
     @Test
-    @DisplayName("blocked: expired token")
+    @DisplayName("blocked: expired token, audited as auth.jwt_invalid with the reason, no claims trusted")
     void expired() throws Exception {
         var past = Instant.now().minusSeconds(3600);
         var token = sign(claims().issueTime(Date.from(past)).expirationTime(Date.from(past.plusSeconds(60))).build());
 
-        assertThat(chat(token, "llama3.2:3b", "hello").statusCode()).isEqualTo(401);
+        var response = chat(token, "llama3.2:3b", "hello");
+
+        assertThat(response.statusCode()).isEqualTo(401);
+        assertThat(response.body()).contains("Missing or invalid credentials").doesNotContainIgnoringCase("expired");
+        var row = awaitRow(auditId(response));
+        assertThat(row).containsEntry("RULES", "auth.jwt_invalid").containsEntry("CLIENT_ID", null)
+                .containsEntry("ON_BEHALF_OF", null);
+        assertThat((String) row.get("DETAIL")).containsIgnoringCase("expired");
     }
 
     @Test
@@ -193,11 +200,13 @@ class OidcAuthenticationTest extends GatewayTestSupport {
     }
 
     @Test
-    @DisplayName("blocked: unsigned token (alg none)")
+    @DisplayName("blocked: unsigned token (alg none), its claims are not recorded")
     void algNone() throws Exception {
-        var token = new PlainJWT(claims().build()).serialize();
+        var response = chat(new PlainJWT(claims().build()).serialize(), "llama3.2:3b", "hello");
 
-        assertThat(chat(token, "llama3.2:3b", "hello").statusCode()).isEqualTo(401);
+        assertThat(response.statusCode()).isEqualTo(401);
+        assertThat(awaitRow(auditId(response))).containsEntry("RULES", "auth.jwt_invalid")
+                .containsEntry("CLIENT_ID", null).containsEntry("ON_BEHALF_OF", null);
     }
 
     @Test
@@ -210,16 +219,25 @@ class OidcAuthenticationTest extends GatewayTestSupport {
     }
 
     @Test
-    @DisplayName("blocked: valid token for an agent that is not a client in the policy")
+    @DisplayName("blocked: valid token for an agent never onboarded, audited as auth.client_not_onboarded with who")
     void unknownClient() throws Exception {
-        assertThat(chat(sign(claims().claim("azp", "shadow-agent").build()), "llama3.2:3b", "hello").statusCode())
-                .isEqualTo(401);
+        var response = chat(sign(claims().claim("azp", "shadow-agent").build()), "llama3.2:3b", "hello");
+
+        assertThat(response.statusCode()).isEqualTo(401);
+        assertThat(response.body()).contains("Missing or invalid credentials");
+        assertThat(awaitRow(auditId(response))).containsEntry("RULES", "auth.client_not_onboarded")
+                .containsEntry("CLIENT_ID", "shadow-agent").containsEntry("ON_BEHALF_OF", "jan.kowalski")
+                .containsEntry("AUTH_METHOD", "oidc:corporate");
     }
 
     @Test
     @DisplayName("allowed: API keys keep working next to the IdP")
     void apiKeyStillWorks() {
         assertThat(chat(DEMO_AGENT_KEY, "llama3.2:3b", "hello with a key").statusCode()).isEqualTo(200);
+    }
+
+    private static String auditId(java.net.http.HttpResponse<String> response) {
+        return response.body().replaceAll("(?s).*\"audit_id\":\"([^\"]+)\".*", "$1");
     }
 
     private Map<String, Object> awaitRow(String id) throws InterruptedException {
