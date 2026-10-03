@@ -76,7 +76,9 @@ flowchart TD
     FWD[7. Forward to model<br/>circuit breaker, stream=false] -- open / timeout --> R503[503 upstream_unavailable]
     FWD --> OUT[8. Response rules<br/>PII, secrets, canary leak,<br/>tool_calls vs allowlist]
     OUT -- BLOCK --> R403c[403 + audit id]
-    OUT -- REDACT / ALLOW --> CHARGE[charge budget<br/>tokens from usage, cost from price table]
+    OUT -- REDACT / ALLOW --> OSEM[8b. Answer check<br/>Llama Guard per output_check]
+    OSEM -- harmful --> R403c
+    OSEM --> CHARGE[charge budget<br/>tokens from usage, cost from price table]
     CHARGE --> RESP([200 JSON, or one SSE chunk when stream=true])
 
     R403a & R403b & R403c & R429 & RESP -. wire-tap .-> AUD[(audit route -> H2)]
@@ -143,7 +145,8 @@ OWASP Top 10 for LLM Applications, 2025 edition.
 | LLM01 Prompt Injection | injection phrases from feed, risk score, Granite 4 injection judge | rules + semantic |
 | LLM02 Sensitive Information Disclosure | PII with checksums (PESEL, IBAN, card, SSN), secrets, both directions | rules |
 | LLM03 Supply Chain | feed signatures for untrusted model repos, `trust_remote_code`, pickle / `torch.load` payloads | rules |
-| LLM05 Improper Output Handling | response scan, tool-call argument deny patterns (SQL, path traversal, shell) | rules |
+| LLM05 Improper Output Handling | response scan, tool-call argument deny patterns (SQL, path traversal, shell), active markup in answers (exfiltration images, scripts, frames, `javascript:` links) | rules |
+| (harmful answers) | Llama Guard on the answer per `output_check` | semantic |
 | LLM06 Excessive Agency | per-client tool allowlist on offered tools and returned `tool_calls` | rules |
 | LLM07 System Prompt Leakage | canary token in system prompt, checked in the response | rules |
 | LLM10 Unbounded Consumption | token / cost / model-time budgets, loop breaker, circuit breaker | rules |
