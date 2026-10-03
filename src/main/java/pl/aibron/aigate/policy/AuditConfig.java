@@ -17,7 +17,8 @@ public record AuditConfig(List<SinkSpec> sinks) {
 
     public enum Protocol { UDP, TCP }
 
-    public enum Format { CEF, JSON }
+    /** cef for syslog SIEMs; json is flat AIGate fields; ecs nests them as Elastic Common Schema. */
+    public enum Format { CEF, JSON, ECS }
 
     /**
      * @param tokenEnv name of the environment variable holding the Splunk HEC token; secrets stay out of the policy

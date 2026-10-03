@@ -74,7 +74,8 @@ public class SiemSink implements AuditSink {
                         sent(spec);
                     }
                     // Asynchronous: the outcome arrives later and must not hold up the next sink or event.
-                    case KAFKA -> kafka.send(spec, event.clientId(), event.eventType(), toJson(event),
+                    case KAFKA -> kafka.send(spec, event.clientId(), event.eventType(),
+                            toJson(spec.format() == Format.ECS ? Format.ECS : Format.JSON, event),
                             error -> {
                                 if (error == null) {
                                     sent(spec);
@@ -100,7 +101,8 @@ public class SiemSink implements AuditSink {
 
     private void sendSyslog(SinkSpec spec, AuditEvent event) {
         var host = syslogHostOverride.isBlank() ? spec.host() : syslogHostOverride;
-        var payload = spec.format() == Format.JSON ? toJson(event) : CefFormatter.syslogLine(event, hostname);
+        var payload = spec.format() == null || spec.format() == Format.CEF
+                ? CefFormatter.syslogLine(event, hostname) : toJson(spec.format(), event);
         if (spec.protocol() == pl.aibron.aigate.policy.AuditConfig.Protocol.TCP) {
             // RFC 6587 non-transparent framing: one event per line.
             producer.sendBody("netty:tcp://" + host + ":" + spec.port() + "?sync=false&textline=true", payload);
@@ -121,7 +123,8 @@ public class SiemSink implements AuditSink {
         var body = JSON.createObjectNode().put("sourcetype", "aigate:audit").put("source", "aigate")
                 .put("host", hostname)
                 .put("time", BigDecimal.valueOf(event.timestamp().toEpochMilli()).movePointLeft(3));
-        body.set("event", JSON.valueToTree(asMap(event)));
+        body.set("event", JSON.valueToTree(spec.format() == Format.ECS
+                ? EcsFormatter.ecs(event, asMap(event)) : asMap(event)));
         var reply = producer.request(spec.url(), exchange -> {
             exchange.getMessage().setHeader(Exchange.HTTP_METHOD, "POST");
             exchange.getMessage().setHeader(Exchange.CONTENT_TYPE, "application/json");
@@ -133,9 +136,10 @@ public class SiemSink implements AuditSink {
         }
     }
 
-    private static String toJson(AuditEvent event) {
+    private static String toJson(Format format, AuditEvent event) {
         try {
-            return JSON.writeValueAsString(asMap(event));
+            var flat = asMap(event);
+            return JSON.writeValueAsString(format == Format.ECS ? EcsFormatter.ecs(event, flat) : flat);
         } catch (Exception e) {
             throw new IllegalStateException(e);
         }

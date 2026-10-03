@@ -242,7 +242,7 @@ audit:
 
 The H2 store and the Micrometer metrics are always on; the policy lists only the external sinks.
 
-Event fields are named after OCSF / ECS where an equivalent exists (`actor.user.name`, `event.action`, `event.outcome`), so a SIEM parser needs no custom mapping. Sinks are independent: a SIEM that is down never blocks the H2 write or the client response. Failed sends are counted and shown on the dashboard.
+Three payload formats, chosen per sink with `format`: `cef` (syslog default; ArcSight CEF, read by QRadar, ArcSight and Sentinel without a custom parser), `json` (flat AIGate fields: `client_id`, `decision`, `profile`, ...) and `ecs` (Elastic Common Schema: `@timestamp`, `event.action`, `event.outcome`, `event.duration`, `user.name`, `rule.name`, `rule.category`, `http.response.status_code`, `message`, with the flat fields kept under `aigate.*`). Sinks are independent: a SIEM that is down never blocks the H2 write or the client response. Failed sends are counted and shown on the dashboard.
 
 Implemented: H2 (dashboard), Micrometer (Prometheus), and `SiemSink` with syslog CEF or JSON over UDP/TCP (Camel `netty`), Splunk HEC (Camel `http`) and Kafka (Camel `kafka`), configured under `audit.sinks` in the policy. Compose runs a receiver standing in for the SIEM.
 

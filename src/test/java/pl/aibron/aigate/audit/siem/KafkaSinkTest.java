@@ -45,7 +45,7 @@ class KafkaSinkTest extends GatewayTestSupport {
 
     @BeforeAll
     static void startBroker() throws Exception {
-        broker = new EmbeddedKafkaKraftBroker(1, 3, TOPIC);
+        broker = new EmbeddedKafkaKraftBroker(1, 3, TOPIC, "aigate.audit.ecs");
         broker.afterPropertiesSet();
         int deadPort;
         try (var probe = new ServerSocket(0)) {
@@ -61,10 +61,15 @@ class KafkaSinkTest extends GatewayTestSupport {
                       bootstrap_servers: %s
                       topic: %s
                     - type: kafka
+                      name: log-bus-ecs
+                      bootstrap_servers: %s
+                      topic: aigate.audit.ecs
+                      format: ecs
+                    - type: kafka
                       name: dead-bus
                       bootstrap_servers: localhost:%d
                       topic: %s
-                """.formatted(broker.getBrokersAsString(), TOPIC, deadPort, TOPIC));
+                """.formatted(broker.getBrokersAsString(), TOPIC, broker.getBrokersAsString(), deadPort, TOPIC));
     }
 
     @AfterAll
@@ -92,12 +97,16 @@ class KafkaSinkTest extends GatewayTestSupport {
         assertThat(allowed.statusCode()).isEqualTo(200);
         assertThat(millis).as("two requests with one Kafka broker down").isLessThan(1000);
 
-        var records = consume(record -> record.value().contains("kafka sink check")
+        var records = consume(TOPIC, record -> record.value().contains("kafka sink check")
                 || record.value().contains("sensitive_data"), 2);
         assertThat(records).extracting(ConsumerRecord::key).containsExactlyInAnyOrder("finance-app", "sandbox");
         assertThat(records).allSatisfy(r -> assertThat(r.value()).doesNotContain("44051401359"));
         assertThat(records).anySatisfy(r -> assertThat(r.value())
                 .contains("\"decision\":\"BLOCK\"", "\"profile\":\"strict\"", "[PESEL]"));
+
+        var ecs = consume("aigate.audit.ecs", record -> record.value().contains("sensitive_data"), 1);
+        assertThat(ecs.getFirst().value()).contains("\"@timestamp\"", "\"event\":{", "\"outcome\":\"failure\"",
+                "\"aigate\":{");
 
         long failuresDeadline = System.nanoTime() + Duration.ofSeconds(15).toNanos();
         while (metrics.find("aigate.audit.sink.failures").tag("sink", "dead-bus").counter() == null) {
@@ -106,8 +115,8 @@ class KafkaSinkTest extends GatewayTestSupport {
         }
     }
 
-    private static List<ConsumerRecord<String, String>> consume(java.util.function.Predicate<ConsumerRecord<String, String>> wanted,
-                                                                int count) {
+    private static List<ConsumerRecord<String, String>> consume(String topic,
+            java.util.function.Predicate<ConsumerRecord<String, String>> wanted, int count) {
         var props = new Properties();
         props.putAll(Map.of(
                 ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, broker.getBrokersAsString(),
@@ -117,7 +126,7 @@ class KafkaSinkTest extends GatewayTestSupport {
                 ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName()));
         var found = new ArrayList<ConsumerRecord<String, String>>();
         try (var consumer = new KafkaConsumer<String, String>(props)) {
-            consumer.subscribe(List.of(TOPIC));
+            consumer.subscribe(List.of(topic));
             long deadline = System.nanoTime() + Duration.ofSeconds(20).toNanos();
             while (found.size() < count && System.nanoTime() < deadline) {
                 for (var record : consumer.poll(Duration.ofMillis(500))) {
