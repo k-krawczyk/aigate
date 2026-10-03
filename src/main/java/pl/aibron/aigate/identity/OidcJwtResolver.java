@@ -107,7 +107,8 @@ public class OidcJwtResolver implements IdentityResolver {
         }
         boolean person = user != null && !user.equals(clientId) && !provider.isServiceAccount(user);
         var identity = new CallerIdentity(clientId, claims.getSubject(), person ? user : null, groups,
-                "oidc:" + provider.name(), strictestProfile(provider, groups, policy));
+                "oidc:" + provider.name(), groups.stream().map(g -> provider.groupProfiles().get(g))
+                        .filter(java.util.Objects::nonNull).distinct().toList());
         if (clientId == null || policy.client(clientId).isEmpty()) {
             // A real corporate identity using an agent nobody onboarded: the most useful signal for the SOC.
             return Resolution.rejectedVerified("auth.client_not_onboarded",
@@ -115,26 +116,5 @@ public class OidcJwtResolver implements IdentityResolver {
                     identity);
         }
         return Resolution.accepted(identity);
-    }
-
-    /**
-     * Profiles are ranked by how they treat PII and when they call the guard models; with several mapped groups the
-     * strictest one wins, so adding a person to a lenient group can never weaken a strict one.
-     */
-    static String strictestProfile(OidcProvider provider, List<String> groups, Policy policy) {
-        String best = null;
-        int bestRank = -1;
-        for (var group : groups) {
-            var profileName = provider.groupProfiles().get(group);
-            if (profileName == null) {
-                continue;
-            }
-            int rank = policy.profiles().get(profileName).strictness();
-            if (rank > bestRank) {
-                best = profileName;
-                bestRank = rank;
-            }
-        }
-        return best;
     }
 }

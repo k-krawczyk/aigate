@@ -79,16 +79,21 @@ public class GatewayPipeline {
             throw new GatewayRejection(401, "invalid_api_key", "access_control", "Missing or invalid credentials");
         }
         var client = policy.client(identity.clientId()).orElseThrow();
-        // An IdP group can tighten the client's profile for this caller, never loosen it.
-        var profileName = client.profile();
-        if (identity.profileOverride() != null && policy.profiles().get(identity.profileOverride()).strictness()
-                > policy.profiles().get(profileName).strictness()) {
-            profileName = identity.profileOverride();
+        // IdP groups can tighten the client's profile for this caller, setting by setting, never loosen it.
+        var profile = policy.profiles().get(client.profile());
+        var applied = new java.util.ArrayList<String>(List.of(client.profile()));
+        for (var groupProfile : identity.groupProfiles()) {
+            var merged = profile.stricterOf(policy.profiles().get(groupProfile));
+            if (!merged.equals(profile)) {
+                applied.add(groupProfile);
+                profile = merged;
+            }
         }
         exchange.setProperty(ExchangeKeys.IDENTITY, identity);
         exchange.setProperty(ExchangeKeys.CLIENT, client);
-        exchange.setProperty(ExchangeKeys.PROFILE_NAME, profileName);
-        exchange.setProperty(ExchangeKeys.PROFILE, policy.profiles().get(profileName));
+        exchange.setProperty(ExchangeKeys.PROFILE_NAME, applied.size() == 1 ? client.profile()
+                : merged(applied, profile, policy));
+        exchange.setProperty(ExchangeKeys.PROFILE, profile);
     }
 
     public void authorizeModel(Exchange exchange) {
@@ -120,6 +125,15 @@ public class GatewayPipeline {
                 }
             }
         };
+    }
+
+    /**
+     * Audit name of the effective profile: the group profile alone when it is at least as strict as the client's
+     * on every setting (the usual case, e.g. "strict"), otherwise the names joined with '+'.
+     */
+    private static String merged(List<String> applied, pl.aibron.aigate.policy.Profile effective, Policy policy) {
+        var last = applied.getLast();
+        return effective.equals(policy.profiles().get(last)) ? last : String.join("+", applied);
     }
 
     /** For steps that are a route call rather than a single processor. */

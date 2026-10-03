@@ -21,11 +21,25 @@ public record Profile(
     public record GuardThresholds(double harmful, double injection) { }
 
     /**
-     * Higher is stricter: first by how PII is treated, then by how often the guard models are asked. Used when an
-     * IdP group maps to a profile, so a group can tighten a client but never loosen it.
+     * The stricter of the two profiles on every setting separately: the harsher action, the more frequent guard
+     * check, the lower thresholds, failing closed if either does. Used when an IdP group maps to a profile, so a
+     * group can tighten a client but never loosen any single control.
      */
-    public int strictness() {
-        return onPii.ordinal() * 10 + (SemanticMode.values().length - 1 - semanticCheck.ordinal());
+    public Profile stricterOf(Profile other) {
+        return new Profile(
+                semanticCheck.ordinal() <= other.semanticCheck.ordinal() ? semanticCheck : other.semanticCheck,
+                harsher(onPii, other.onPii),
+                harsher(onSecret, other.onSecret),
+                harsher(onSignatureMatch, other.onSignatureMatch),
+                new RiskThresholds(Math.min(risk.unsureAbove(), other.risk.unsureAbove()),
+                        Math.min(risk.blockAbove(), other.risk.blockAbove())),
+                new GuardThresholds(Math.min(guardThresholds.harmful(), other.guardThresholds.harmful()),
+                        Math.min(guardThresholds.injection(), other.guardThresholds.injection())),
+                harsher(onGuardError, other.onGuardError));
+    }
+
+    private static Action harsher(Action a, Action b) {
+        return a.ordinal() >= b.ordinal() ? a : b;
     }
 
     public Profile {

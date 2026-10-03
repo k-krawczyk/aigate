@@ -69,7 +69,15 @@ class OidcAuthenticationTest extends GatewayTestSupport {
         });
         jwksServer.start();
 
-        var policy = Files.readString(POLICY_DIR.resolve("policy.yaml"));
+        // A profile strict on PII but lax on secrets and signatures: mapped to a group, it must not loosen either.
+        var policy = Files.readString(POLICY_DIR.resolve("policy.yaml")).replaceFirst("profiles:\n", """
+                profiles:
+                  lax-secrets:
+                    semantic_check: never
+                    on_pii: block
+                    on_secret: allow
+                    on_signature_match: allow
+                """);
         Files.writeString(POLICY_DIR.resolve("policy.yaml"), policy + """
 
                 identity:
@@ -85,6 +93,7 @@ class OidcAuthenticationTest extends GatewayTestSupport {
                       group_profiles:
                         ai-finance: strict
                         ai-interns: permissive
+                        ai-auditors: lax-secrets
                 """.formatted(ISSUER, jwksServer.getAddress().getPort(), AUDIENCE));
     }
 
@@ -170,6 +179,19 @@ class OidcAuthenticationTest extends GatewayTestSupport {
                 "llama3.2:3b", "Why does this fail? AKIAIOSFODNN7EXAMPLE");
 
         assertThat(response.statusCode()).isEqualTo(403);
+    }
+
+    @Test
+    @DisplayName("merged per setting: a group profile strict on PII but lax on secrets tightens PII, keeps secrets blocked")
+    void mixedGroupProfile() throws Exception {
+        var token = sign(claims().claim("groups", List.of("ai-auditors")).build());
+
+        var secret = chat(token, "llama3.2:3b", "Why does this fail? AKIAIOSFODNN7EXAMPLE");
+        var pii = chat(token, "llama3.2:3b", "client 44051401359");
+
+        assertThat(secret.statusCode()).as("client's balanced profile blocks secrets").isEqualTo(403);
+        assertThat(pii.statusCode()).as("group profile blocks PII").isEqualTo(403);
+        assertThat(awaitRow(auditId(pii))).containsEntry("PROFILE", "balanced+lax-secrets");
     }
 
     @Test
