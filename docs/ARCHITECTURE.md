@@ -233,7 +233,7 @@ audit:
 
 Event fields are named after OCSF / ECS where an equivalent exists (`actor.user.name`, `event.action`, `event.outcome`), so a SIEM parser needs no custom mapping. Sinks are independent: a SIEM that is down never blocks the H2 write or the client response. Failed sends are counted and shown on the dashboard.
 
-For the hackathon: `AuditSink` interface, H2 sink, and one external sink (syslog/CEF to a local `nc -lu` or a tiny container) to prove the path works.
+Implemented: H2 (dashboard), Micrometer (Prometheus), and `SiemSink` with syslog CEF or JSON over UDP/TCP (Camel `netty`) and Splunk HEC (Camel `http`), configured under `audit.sinks` in the policy. Compose runs a receiver standing in for the SIEM.
 
 ## 9. Scalability (what changes beyond a hackathon)
 

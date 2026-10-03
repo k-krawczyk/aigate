@@ -98,6 +98,32 @@ public final class PolicyLoader {
             checkDuration("signatures.refresh", policy.signatures().refresh(), errors);
         }
 
+        for (var sink : policy.audit().sinks()) {
+            if (sink.type() == null) {
+                errors.add("audit.sinks: every sink needs a type (syslog or splunk_hec)");
+                continue;
+            }
+            var path = "audit.sinks." + sink.label();
+            switch (sink.type()) {
+                case SYSLOG -> {
+                    if (sink.host() == null || sink.host().isBlank()) {
+                        errors.add(path + ".host: required for syslog");
+                    }
+                    if (sink.port() == null || sink.port() < 1 || sink.port() > 65535) {
+                        errors.add(path + ".port: must be 1-65535");
+                    }
+                }
+                case SPLUNK_HEC -> {
+                    if (sink.url() == null || !sink.url().matches("https?://.+")) {
+                        errors.add(path + ".url: required, http(s) URL of the HEC event endpoint");
+                    }
+                    if (sink.tokenEnv() == null || sink.tokenEnv().isBlank()) {
+                        errors.add(path + ".token_env: name of the environment variable with the HEC token");
+                    }
+                }
+            }
+        }
+
         var clientIds = new HashSet<String>();
         var keyHashes = new HashSet<String>();
         for (var client : policy.clients()) {

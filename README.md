@@ -43,7 +43,7 @@ The policy stores only SHA-256 hashes of these keys.
 docker compose --profile test run --rm tests  # no JDK needed either
 ```
 
-189 tests, all with a stubbed model and stubbed guards, so they run offline in about 15 seconds once dependencies are downloaded. Test names read as a checklist (`blocked: strict profile refuses a request containing a PESEL`, `allowed: ordinary multi-turn chat with growing history does not trip the loop breaker`). Every control has at least one case that must pass and one that must be stopped.
+205 tests, all with a stubbed model and stubbed guards, so they run offline in about 15 seconds once dependencies are downloaded. Test names read as a checklist (`blocked: strict profile refuses a request containing a PESEL`, `allowed: ordinary multi-turn chat with growing history does not trip the loop breaker`). Every control has at least one case that must pass and one that must be stopped.
 
 | Suite | What it proves |
 |---|---|
@@ -56,6 +56,7 @@ docker compose --profile test run --rm tests  # no JDK needed either
 | `PolicyLoaderTest`, `PolicyHotReloadTest` | Validation, hot reload, editor-style saves, broken edits keep the old policy |
 | `AuthenticationTest`, `ModelAllowlistTest` | API keys, model allowlist |
 | `AuditTrailTest`, `DashboardAndExportTest` | Audit content (masked), dashboard, export, Prometheus metrics |
+| `CefFormatterTest`, `SiemForwardingTest` | CEF format and escaping; real UDP, TCP and HTTP receivers get masked events; a dead SIEM does not slow clients |
 | `ThreatCorpusTest` | The team's red-team corpus in `testdata/test-cases.json`, replayed end to end |
 
 GitHub Actions runs the suite on every push.
@@ -128,6 +129,7 @@ The gateway starts from the copy bundled in the jar and follows `signatures.feed
 - **Management view** (`/dashboard/management`): budget consumption per client against policy limits, usage and cost by client and model, tokens over time.
 - **Playground** (`/dashboard/playground`): send a prompt through the public endpoint with any demo key and see the decision, matched rules and step timings.
 - **Export**: `GET /audit/export?format=jsonl` or `?format=csv`, optional `&hours=24`. The audit store only ever holds masked text.
+- **SIEM forwarding**: the `audit.sinks` section of the policy sends every event (requests, policy reloads, feed updates) to a SIEM as RFC 5424 syslog with an ArcSight CEF payload over UDP or TCP, or as JSON, or to Splunk HEC (token from an environment variable). Sinks are Camel endpoints, hot-reloaded with the policy; a SIEM that is down never delays a client. Compose includes a receiver standing in for the SIEM: `docker compose logs -f siem`.
 - **Metrics**: `GET /actuator/prometheus`, including `aigate_step_latency_seconds{step=...}`, `aigate_request_latency_seconds`, `aigate_requests_total{decision,category,client}`, `aigate_tokens_total`, `aigate_cost_usd_total`.
 
 Measured on an M2 Max with the models warm:
@@ -161,13 +163,14 @@ The agent uses the official OpenAI SDK; the only AIGate-specific line is `base_u
 | Policy directory | `policy` | `AIGATE_POLICY_DIR` |
 | Signature feed URL | from the policy | `AIGATE_SIGNATURES_FEED_URL` |
 | Audit database | `./data/aigate` (H2) | `AIGATE_DB_URL` |
+| Syslog host for SIEM sinks | from the policy | `AIGATE_SIEM_SYSLOG_HOST` |
 
 ## Scope and known limits
 
 - Streaming: the gateway needs the whole answer to check it, so a `stream=true` client gets the checked answer as one SSE chunk.
 - Budgets and the loop breaker are in memory, per instance. Several instances need a shared store such as Redis.
 - Agent-to-MCP traffic is governed through tool definitions and tool calls in chat completions; there is no separate MCP proxy.
-- Corporate IdP (OIDC) and SIEM sinks are interfaces with documented configuration, not shipped integrations.
+- Corporate IdP (OIDC) is an interface with documented configuration, not a shipped integration.
 - The guard models are small local models. The injection judge misses some role-play jailbreaks; known ones are covered by feed signatures. Granite Guardian 3 (2B) was evaluated and dropped because it scored ordinary requests as jailbreaks.
 
 Open-source components and AI tools used: [THIRD_PARTY.md](THIRD_PARTY.md).

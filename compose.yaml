@@ -12,6 +12,7 @@ services:
       AIGATE_DB_URL: jdbc:h2:file:/app/data/aigate
       AIGATE_POLICY_DIR: /app/policy
       AIGATE_POLICY_LAST_KNOWN_GOOD: /app/data/policy.last-known-good.yaml
+      AIGATE_SIEM_SYSLOG_HOST: siem
     volumes:
       # The directory, not the file: editors that save by rename would leave a single-file mount on the old inode.
       - ./policy:/app/policy
@@ -20,6 +21,7 @@ services:
       - "host.docker.internal:host-gateway"
     depends_on:
       - signature-feed
+      - siem
 
   # Plays the externally managed signature feed. Edit feed/signatures.json and bump "version".
   signature-feed:
@@ -28,6 +30,16 @@ services:
       - "8090:80"
     volumes:
       - ./feed:/usr/share/nginx/html:ro
+
+  # Stands in for a SIEM: prints every CEF event it receives. Watch it with: docker compose logs -f siem
+  siem:
+    image: python:3.12-alpine
+    command: ["python", "-u", "/receiver.py", "5514"]
+    volumes:
+      - ./demo/siem/receiver.py:/receiver.py:ro
+    ports:
+      - "5514:5514/udp"
+      - "5514:5514/tcp"
 
   # docker compose --profile test run --rm tests   (no JDK needed on the host, no Ollama needed at all)
   tests:

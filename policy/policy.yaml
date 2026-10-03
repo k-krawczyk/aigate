@@ -75,6 +75,26 @@ signatures:
   feed_url: http://localhost:8090/signatures.json
   refresh: 30s
 
+# Audit forwarding to a SIEM, on top of the built-in store that feeds the dashboard. Each sink is independent;
+# a SIEM that is down never blocks a client response. Changes apply to the next event.
+#   syslog       RFC 5424 over udp or tcp; format cef (ArcSight CEF, read by QRadar, ArcSight, Sentinel) or json
+#   splunk_hec   Splunk HTTP Event Collector; the token is read from the environment variable named in token_env
+# AIGATE_SIEM_SYSLOG_HOST overrides the syslog host (Compose sets it to the bundled receiver).
+audit:
+  sinks:
+    - type: syslog
+      name: siem-syslog
+      enabled: true
+      host: localhost
+      port: 5514
+      protocol: udp
+      format: cef
+    - type: splunk_hec
+      name: splunk
+      enabled: false
+      url: https://splunk.internal:8088/services/collector/event
+      token_env: AIGATE_SPLUNK_HEC_TOKEN
+
 # Callers. Only SHA-256 hashes of API keys live here; the demo keys are listed in the README.
 #   echo -n '<key>' | shasum -a 256
 clients:

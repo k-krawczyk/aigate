@@ -16,6 +16,7 @@
 | JUnit, AssertJ, Spring Test | managed by Spring Boot | EPL 2.0, Apache 2.0 | Test suite |
 | Eclipse Temurin | 21 | GPLv2 with Classpath Exception | Container base images |
 | nginx | 1.27-alpine | BSD-2-Clause | Serves the signature feed in Compose |
+| Python | 3.12-alpine image | PSF License | Syslog receiver standing in for a SIEM in Compose |
 | OpenAI Python SDK | >= 1.40 | Apache 2.0 | Demo agent client (talks only to AIGate) |
 | Ollama | 0.34 | MIT | Local model server (not bundled) |
 

@@ -34,6 +34,9 @@ aigate:
 
   signatures:
     feed-url: ${AIGATE_SIGNATURES_FEED_URL:}
+  siem:
+    # Overrides the host of syslog sinks in the policy, e.g. with a container hostname.
+    syslog-host: ${AIGATE_SIEM_SYSLOG_HOST:}
   guards:
     # Same OpenAI-compatible endpoint as the main model by default; guard models are small and run locally.
     uri: ${AIGATE_GUARDS_URI:http://localhost:11434/v1/chat/completions}

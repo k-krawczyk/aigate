@@ -13,13 +13,15 @@ public record Policy(
         List<ModelSpec> models,
         Budgets budgets,
         Signatures signatures,
-        List<ClientSpec> clients) {
+        List<ClientSpec> clients,
+        AuditConfig audit) {
 
     public Policy {
         profiles = profiles == null ? Map.of() : Map.copyOf(profiles);
         models = models == null ? List.of() : List.copyOf(models);
         clients = clients == null ? List.of() : List.copyOf(clients);
         budgets = budgets == null ? Budgets.NONE : budgets;
+        audit = audit == null ? AuditConfig.NONE : audit;
     }
 
     public Optional<ModelSpec> model(String name) {
