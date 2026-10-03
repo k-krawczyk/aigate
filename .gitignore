@@ -1,0 +1,17 @@
+target/
+*.class
+*.log
+
+# Maven wrapper downloads
+.mvn/wrapper/maven-wrapper.jar
+
+# H2 audit database
+data/
+*.mv.db
+*.trace.db
+
+# IDE and OS
+.idea/
+*.iml
+.vscode/
+.DS_Store
