@@ -71,7 +71,8 @@ public final class MessageText {
 
     /**
      * The turn's new input: messages after the last assistant message, plus the tool calls that assistant message
-     * made. Earlier history was already checked when it was new.
+     * made. Only for loop detection, where the shared history would otherwise make every chat look repetitive.
+     * Never for security checks: the client writes the whole history, including "assistant" turns.
      */
     public static String newInput(ObjectNode request) {
         var messages = request.path("messages");
@@ -90,6 +91,30 @@ public final class MessageText {
         for (int i = lastAssistant + 1; i < messages.size(); i++) {
             var content = messages.get(i).path("content");
             text.append(content.isTextual() ? content.asText() : content.toString()).append(' ');
+        }
+        return text.toString();
+    }
+
+    /**
+     * Everything in the conversation the client controls, for the injection and harm checks: every message except
+     * the system prompt, including earlier "assistant" turns and tool results, because the gateway cannot tell a
+     * genuine history from one the client made up.
+     */
+    public static String conversationInput(ObjectNode request) {
+        var text = new StringBuilder();
+        for (JsonNode message : request.path("messages")) {
+            if ("system".equals(message.path("role").asText())) {
+                continue;
+            }
+            var content = message.path("content");
+            if (content.isTextual()) {
+                text.append(content.asText()).append('\n');
+            } else if (content.isArray()) {
+                content.forEach(part -> text.append(part.path("text").asText("")).append('\n'));
+            }
+            for (JsonNode call : message.path("tool_calls")) {
+                text.append(call.path("function").toString()).append('\n');
+            }
         }
         return text.toString();
     }
