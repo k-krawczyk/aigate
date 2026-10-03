@@ -29,7 +29,8 @@ public class SemanticGuard {
     public record Verdict(double harmScore, String harmCategory, double injectionScore, long millis) { }
 
     private static final ObjectMapper JSON = new ObjectMapper();
-    private static final int MAX_CHARS = 4000;
+    /** What the small guard models are given at most; RiskScorer flags anything longer, see guardInput. */
+    public static final int MAX_CHARS = 4000;
 
     private static final Map<String, String> HAZARDS = Map.ofEntries(
             Map.entry("S1", "violent crimes"), Map.entry("S2", "non-violent crimes"),
@@ -71,7 +72,7 @@ public class SemanticGuard {
 
     public Verdict evaluate(String text) throws Exception {
         long start = System.nanoTime();
-        var input = text.length() > MAX_CHARS ? text.substring(text.length() - MAX_CHARS) : text;
+        var input = guardInput(text);
 
         var harm = call(guardRequest(harmModel, null, input));
         var injection = call(guardRequest(injectionModel, judgePrompt, "USER TEXT:\n<<<\n" + input + "\n>>>"));
@@ -90,6 +91,18 @@ public class SemanticGuard {
                 category == null ? null : category.trim(),
                 probability(injectionAnswer, "yes", "no"),
                 (System.nanoTime() - start) / 1_000_000);
+    }
+
+    /**
+     * Head and tail of a long input. An attack usually sits at the start (instructions first, filler after) or at
+     * the end (filler first), so both ends are kept rather than only the last part.
+     */
+    static String guardInput(String text) {
+        if (text.length() <= MAX_CHARS) {
+            return text;
+        }
+        int half = MAX_CHARS / 2;
+        return text.substring(0, half) + "\n[...]\n" + text.substring(text.length() - half);
     }
 
     private CompletableFuture<String> call(String body) {

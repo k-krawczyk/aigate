@@ -21,7 +21,11 @@ public class RiskScorer {
 
     private record Rule(String id, double weight, Pattern pattern) { }
 
-    private static final int LONG_INPUT_CHARS = 8000;
+    /**
+     * Inputs longer than the guards can read are sent to them on the balanced profile anyway (weight at the
+     * unsure threshold), so padding cannot be used to stay below the guards' horizon.
+     */
+    private static final int LONG_INPUT_CHARS = pl.aibron.aigate.gateway.SemanticGuard.MAX_CHARS;
 
     private static final List<Rule> RULES = List.of(
             new Rule("injection.override_instructions", 0.6, Pattern.compile(
@@ -70,7 +74,7 @@ public class RiskScorer {
             }
         }
         if (text.length() > LONG_INPUT_CHARS) {
-            signals.add(new Signal("size.long_input", 0.2));
+            signals.add(new Signal("size.long_input", 0.3));
         }
         double keep = 1.0;
         for (var s : signals) {
