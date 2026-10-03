@@ -37,6 +37,18 @@ public class ChatCompletionsRoute extends RouteBuilder {
                 .process(ChatCompletionsRoute::writeRejection)
                 .wireTap("direct:audit");
 
+        // Anything unexpected still gets an OpenAI-style error and an audit event, never a stack trace.
+        onException(Exception.class)
+                .handled(true)
+                .process(exchange -> {
+                    var cause = exchange.getProperty(Exchange.EXCEPTION_CAUGHT, Exception.class);
+                    log.error("Unexpected gateway error", cause);
+                    exchange.setProperty(Exchange.EXCEPTION_CAUGHT,
+                            new GatewayRejection(500, "internal_error", "gateway_error", "Internal gateway error"));
+                })
+                .process(ChatCompletionsRoute::writeRejection)
+                .wireTap("direct:audit");
+
         rest("/v1")
                 .post("/chat/completions")
                 .consumes("application/json")
@@ -64,7 +76,21 @@ public class ChatCompletionsRoute extends RouteBuilder {
                 .removeHeaders("*")
                 .setHeader(Exchange.HTTP_METHOD, constant("POST"))
                 .setHeader(Exchange.CONTENT_TYPE, constant("application/json"))
-                .to("{{aigate.upstream.uri}}")
+                // Opens after half of the last 10 calls failed, so a dead model server costs clients
+                // milliseconds instead of a connect timeout each, and is retried after 15 s.
+                .circuitBreaker()
+                    .resilience4jConfiguration()
+                        .slidingWindowSize(10).minimumNumberOfCalls(5).failureRateThreshold(50)
+                        .waitDurationInOpenState(15000).automaticTransitionFromOpenToHalfOpenEnabled(true)
+                        .timeoutEnabled(true).timeoutDuration(120000)
+                    .end()
+                    .to("{{aigate.upstream.uri}}")
+                .onFallback()
+                    .process(exchange -> {
+                        throw new GatewayRejection(503, "upstream_unavailable", "availability",
+                                "Model server unavailable, try again later");
+                    })
+                .end()
                 .convertBodyTo(String.class)
                 .removeHeaders("*", Exchange.HTTP_RESPONSE_CODE)
                 .setHeader(Exchange.CONTENT_TYPE, constant("application/json"));

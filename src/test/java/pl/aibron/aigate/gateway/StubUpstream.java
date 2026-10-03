@@ -15,6 +15,7 @@ import org.springframework.context.annotation.Bean;
  *   <li>{@code @fixture <key>}: answer with text registered in {@link #FIXTURES}, for answers whose content
  *       would already be caught if it appeared in the request</li>
  *   <li>{@code @leak}: answer with the full system prompt the model received</li>
+ *   <li>{@code @upstream-down}: fail as an unreachable model server would</li>
  * </ul>
  */
 @TestConfiguration
@@ -49,6 +50,9 @@ public class StubUpstream {
                 .putObject("message").put("role", "assistant");
         response.putObject("usage").put("prompt_tokens", 10).put("completion_tokens", 5).put("total_tokens", 15);
 
+        if (last.equals("@upstream-down")) {
+            throw new java.net.ConnectException("Connection refused");
+        }
         if (last.startsWith("@tool ")) {
             var parts = last.substring(6).split(" ", 2);
             message.put("content", "");

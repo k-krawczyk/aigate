@@ -21,6 +21,15 @@ class PassThroughTest extends GatewayTestSupport {
     }
 
     @Test
+    @DisplayName("unavailable: model server down gives 503 in OpenAI error format, not a stack trace")
+    void upstreamDown() {
+        var response = chat(DEMO_AGENT_KEY, "llama3.2:3b", "@upstream-down");
+
+        assertThat(response.statusCode()).isEqualTo(503);
+        assertThat(response.body()).contains("\"code\":\"upstream_unavailable\"").doesNotContain("Exception");
+    }
+
+    @Test
     @DisplayName("blocked: body that is not JSON gets 400 in OpenAI error format")
     void rejectsInvalidJson() {
         var response = post(DEMO_AGENT_KEY, "not json");
