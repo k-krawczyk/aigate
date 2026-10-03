@@ -2,7 +2,7 @@
 
 AIGate is an OpenAI-compatible gateway. A client changes one setting, its base URL, and from then on every chat completion, tool definition and tool call goes through the gateway. The gateway checks it against a central policy, charges it to a budget and writes an audit event. There is no SDK to install and no change to client code.
 
-Status: concept for review, nothing implemented yet. Items marked *proposal* are not in `CLAUDE.md` yet.
+Status: reviewed concept, nothing implemented yet.
 
 ## 1. Context
 
@@ -85,7 +85,7 @@ flowchart TD
 Why this order:
 
 - Cheapest checks first. Auth, allowlist and budget are map lookups. A request without a valid key never reaches the regex engine.
-- Budget is checked before the model call, using an estimate (prompt length / 4 + `max_tokens`). It is charged afterwards from the `usage` field the model returns. *proposal*: the estimate is not specified in `CLAUDE.md`.
+- Budget is checked before the model call, using an estimate (prompt length / 4 + `max_tokens`). It is charged afterwards from the `usage` field the model returns.
 - The semantic layer is the expensive part (a local model call, roughly 100-500 ms, to be measured). It only runs on the grey zone. Clear cases are decided by rules alone.
 - Audit is a wire-tap to a separate route. A slow or failing database write never delays or fails the client response.
 
@@ -111,7 +111,7 @@ semantic_check: always              -> semantic check on every request
 
 The guards return `safe`/`unsafe` (Llama Guard) or `Yes`/`No` (Granite Guardian). With `logprobs` we take the probability of the first token, which gives a score to compare against `guard_thresholds`.
 
-*proposal*: `on_guard_error: block | allow` per profile. Strict fails closed, permissive fails open. Without it the behaviour when Ollama is down is undefined.
+`on_guard_error: block | allow` per profile: strict and balanced fail closed, permissive fails open.
 
 ## 4. Supporting routes
 
@@ -190,7 +190,7 @@ CallerIdentity(clientId, subject, onBehalfOf, groups, authMethod)
 | Resolver | Token | Maps to policy client by | Status |
 |---|---|---|---|
 | `ApiKeyResolver` | opaque key | SHA-256 of the key | hackathon build |
-| `OidcJwtResolver` | JWT from the corporate IdP | `azp` / `client_id` claim for agents, `groups` claim for profile selection | interface + config only, *proposal* |
+| `OidcJwtResolver` | JWT from the corporate IdP | `azp` / `client_id` claim for agents, `groups` claim for profile selection | interface + config only |
 
 The OIDC resolver validates signature against the issuer's JWKS, plus `iss`, `aud` and `exp`. Spring Security's OAuth2 resource server does this out of the box, so the work is the claim mapping, not the crypto. Policy gets one optional section:
 
@@ -246,10 +246,10 @@ For the hackathon: `AuditSink` interface, H2 sink, and one external sink (syslog
 
 Camel is the reason the right-hand column is mostly a change of endpoint URI, not a rewrite.
 
-## 10. Open questions for review
+## 10. Decisions after review (3 Oct 2026)
 
-1. Fail closed or fail open when a guard model is unavailable (the `on_guard_error` proposal)?
-2. Should a `REDACT` on the response be visible to the client, e.g. `[REDACTED:PESEL]`, or silent?
-3. Does the demo need a second, real agent with tools (for LLM06), or is a scripted client with `tools` in the request enough?
-4. The estimate-then-charge budget model lets one request overshoot the budget by at most its own size. Acceptable?
-5. Should the demo show the OIDC path live (Keycloak container in Compose, around 1-2 h of work), or is the interface plus config enough for the hackathon?
+1. `on_guard_error: block | allow` per profile is accepted. `strict` and `balanced` fail closed, `permissive` fails open.
+2. Response redaction is silent: the client gets the masked text with no marker. The audit event records what was redacted and why.
+3. Demo agent with real tools: open, see the proposal in the planning notes.
+4. Estimate-then-charge budgets are accepted; one request may overshoot by at most its own size.
+5. OIDC: interface and configuration only, no Keycloak in the demo. The README and slides say so explicitly.

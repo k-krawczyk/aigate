@@ -81,7 +81,7 @@ Main route, in order:
 5. **Decision**: `ALLOW`, `REDACT` (mask findings and continue), `BLOCK`, or `UNSURE`. `UNSURE` means the risk score is between the profile's `unsure_above` and `block_above`.
 6. **Semantic check** (only for `UNSURE`, or when the profile says always): ask both guard models in parallel; block when either score crosses the profile's threshold.
 7. **Forward** to the upstream model inside a circuit breaker. Upstream is always called with `stream=false`. When the client asked for `stream=true`, return the already checked answer as a single SSE chunk followed by `data: [DONE]`, so streaming clients do not break.
-8. **Rule checks on the response**: leaked PII or secrets, and `tool_calls` against the client's tool allowlist and argument deny patterns.
+8. **Rule checks on the response**: leaked PII or secrets, and `tool_calls` against the client's tool allowlist and argument deny patterns. Redaction in responses is silent: the client sees masked text with no marker; the audit event records what was masked.
 9. **Audit**: wire-tap an event to a separate route that writes to the database, so auditing never slows the response.
 
 Supporting routes:
@@ -110,6 +110,7 @@ profiles:
     on_signature_match: block
     risk: { unsure_above: 0.2, block_above: 0.6 }
     guard_thresholds: { harmful: 0.5, injection: 0.5 }
+    on_guard_error: block            # block | allow when a guard model fails
   balanced:
     semantic_check: on_unsure
     on_pii: redact
@@ -117,12 +118,14 @@ profiles:
     on_signature_match: block
     risk: { unsure_above: 0.3, block_above: 0.8 }
     guard_thresholds: { harmful: 0.7, injection: 0.7 }
+    on_guard_error: block
   permissive:
     semantic_check: never
     on_pii: allow
     on_secret: redact
     on_signature_match: block
     risk: { unsure_above: 1.0, block_above: 1.0 }
+    on_guard_error: allow
 models:
   - name: llama3.2:3b
     kind: local
