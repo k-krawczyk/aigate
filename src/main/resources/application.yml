@@ -4,6 +4,11 @@ spring:
   threads:
     virtual:
       enabled: true
+  mvc:
+    async:
+      # platform-http answers asynchronously; Spring's default 30 s would cut off a slow model with a bare 503
+      # before the 120 s circuit-breaker timeout can return a proper, audited upstream_unavailable.
+      request-timeout: 180s
 
   datasource:
     url: ${AIGATE_DB_URL:jdbc:h2:file:./data/aigate}
