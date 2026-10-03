@@ -108,7 +108,7 @@ public class ContentInspection {
             case PII -> profile.onPii();
             case SECRET -> profile.onSecret();
             case SIGNATURE -> profile.onSignatureMatch();
-            case TOOL, TOOL_ARGUMENT, PROMPT_LEAK -> Action.BLOCK;
+            case TOOL, TOOL_ARGUMENT, PROMPT_LEAK, TOOL_INJECTION -> Action.BLOCK;
             case UNSAFE_OUTPUT -> profile.onUnsafeOutput();
         };
     }

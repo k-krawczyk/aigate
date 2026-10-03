@@ -66,7 +66,8 @@ flowchart TD
     MODEL --> BUD{3. Budget + loop breaker}
     BUD -- exhausted / loop --> R429[429 budget_exceeded<br/>or loop_detected]
     BUD --> RULES[4. Request rules<br/>PII, secrets, signatures,<br/>tool allowlist, risk score]
-    RULES --> DEC{5. Decision}
+    RULES --> TD[4b. Tool data<br/>search results, MCP output and tool descriptions:<br/>quarantine or block]
+    TD --> DEC{5. Decision}
     DEC -- BLOCK --> R403b[403 + audit id]
     DEC -- REDACT --> MASK[mask findings] --> FWD
     DEC -- UNSURE --> SEM[6. Semantic check<br/>both guards in parallel]
@@ -142,7 +143,7 @@ OWASP Top 10 for LLM Applications, 2025 edition.
 
 | OWASP | Control in AIGate | Layer |
 |---|---|---|
-| LLM01 Prompt Injection | injection phrases from feed, risk score, Granite 4 injection judge | rules + semantic |
+| LLM01 Prompt Injection | injection phrases from feed, risk score, Granite 4 injection judge; indirect injection in tool results and MCP tool descriptions with a tool-data judge, quarantine or block | rules + semantic |
 | LLM02 Sensitive Information Disclosure | PII with checksums (PESEL, IBAN, card, SSN), secrets, both directions | rules |
 | LLM03 Supply Chain | feed signatures for untrusted model repos, `trust_remote_code`, pickle / `torch.load` payloads | rules |
 | LLM05 Improper Output Handling | response scan, tool-call argument deny patterns (SQL, path traversal, shell), active markup in answers (exfiltration images, scripts, frames, `javascript:` links) | rules |

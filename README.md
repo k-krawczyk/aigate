@@ -43,13 +43,14 @@ The policy stores only SHA-256 hashes of these keys.
 docker compose --profile test run --rm tests  # no JDK needed either
 ```
 
-260 tests, all with a stubbed model and stubbed guards, so they run offline in about 15 seconds once dependencies are downloaded. Test names read as a checklist (`blocked: strict profile refuses a request containing a PESEL`, `allowed: ordinary multi-turn chat with growing history does not trip the loop breaker`). Every control has at least one case that must pass and one that must be stopped.
+285 tests, all with a stubbed model and stubbed guards, so they run offline in about 15 seconds once dependencies are downloaded. Test names read as a checklist (`blocked: strict profile refuses a request containing a PESEL`, `allowed: ordinary multi-turn chat with growing history does not trip the loop breaker`). Every control has at least one case that must pass and one that must be stopped.
 
 | Suite | What it proves |
 |---|---|
 | `PiiDetectorsTest`, `SecretDetectorsTest` | Detectors and checksums (PESEL, IBAN/NRB mod 97, Luhn), and what must not be flagged |
 | `RequestContentPolicyTest`, `ResponseInspectionTest` | Allow / redact / block per profile, in both directions; system prompt leakage |
 | `ToolGovernanceTest` | Tool allowlist, argument deny patterns, replayed tool calls |
+| `ToolDataRulesTest`, `ToolDataInjectionTest` | Instructions planted in search results, pages and MCP output or descriptions are quarantined or blocked, ordinary tool data passes, verdicts are cached, pinned tools detect rug pulls |
 | `OutputSafetyTest`, `OutputChecksTest` | Exfiltration images, scripts, frames and `javascript:` links in answers; code blocks untouched; Llama Guard on answers per profile |
 | `RiskScorerTest`, `SemanticCheckTest` | Injection risk score; guards called only when needed; fail-closed |
 | `KnownAttackSignaturesTest`, `SignatureFeedTest` | Historical exploits; live feed update over HTTP, invalid feed and feed outage |
@@ -105,6 +106,8 @@ Java 21, Spring Boot 4.1.1, Apache Camel 4.22.1, H2, Micrometer, Resilience4j, T
 | Harmful content: Llama Guard 3 hazard categories S1-S14 | semantic | - |
 | Known exploits on AI infrastructure from an external feed (17 signatures with CVE or source) | rules | LLM03, LLM05, LLM01 |
 | Tool allowlist, argument deny patterns, poisoned tool descriptions | rules | LLM06, LLM05 |
+| Indirect prompt injection in tool results (web search, pages, files, MCP output) and MCP tool descriptions: quarantined (result replaced by a notice, tool dropped) or blocked per `on_tool_injection`; judge verdicts cached per content | rules + semantic | LLM01 |
+| MCP rug pull: a pinned tool whose description changed since approval (`tools.pinned`) | rules | LLM03 |
 | PII and secrets in answers and tool-call arguments (silent masking or block) | rules | LLM02 |
 | Active markup in answers: images calling out with data in the URL, scripts, frames, `javascript:` links (removed or blocked; code blocks left alone) | rules | LLM05 |
 | Harmful answers the input checks missed (a jailbreak that worked): Llama Guard judges the answer per `output_check` | semantic | - |

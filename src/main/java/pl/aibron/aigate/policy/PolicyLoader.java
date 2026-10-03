@@ -82,7 +82,7 @@ public final class PolicyLoader {
                 errors.add("profiles." + name + ".risk: unsure_above must not exceed block_above");
             }
             var guard = profile.guardThresholds();
-            if (!inUnitRange(guard.harmful()) || !inUnitRange(guard.injection())) {
+            if (!inUnitRange(guard.harmful()) || !inUnitRange(guard.injection()) || !inUnitRange(guard.toolInjection())) {
                 errors.add("profiles." + name + ".guard_thresholds: thresholds must be between 0 and 1");
             }
         });

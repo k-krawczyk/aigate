@@ -10,7 +10,8 @@ import org.springframework.context.annotation.Bean;
 
 /**
  * Stands in for the two guard models, answering in their real format including logprobs (shape copied from
- * Ollama 0.34). Flags "pipe bomb" as harmful (S9), "DAN" and "previous instructions" as injection, and fails on
+ * Ollama 0.34). Flags "pipe bomb" as harmful (S9), "DAN" and "previous instructions" as injection; the tool-data
+ * judges flag "aigate-test-tool-injection", which no rule knows, so tests can reach the semantic path. Fails on
  * "@guard-down" to exercise the fail-closed path.
  */
 @TestConfiguration
@@ -44,7 +45,14 @@ public class StubGuards {
         String token;
         String other;
         String content;
-        if (injectionGuard) {
+        var system = messages.get(0).path("content").asText("");
+        boolean toolJudge = system.contains("returned by a tool") || system.contains("tool definitions");
+        if (injectionGuard && toolJudge) {
+            boolean flagged = text.contains("aigate-test-tool-injection");
+            token = flagged ? "Yes" : "No";
+            other = flagged ? "No" : "Yes";
+            content = token;
+        } else if (injectionGuard) {
             boolean flagged = text.contains("dan") || text.contains("previous instructions");
             token = flagged ? "Yes" : "No";
             other = flagged ? "No" : "Yes";

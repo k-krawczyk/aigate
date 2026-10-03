@@ -7,7 +7,8 @@ public enum FindingKind {
     TOOL("tool_misuse", "LLM06"),
     TOOL_ARGUMENT("unsafe_tool_argument", "LLM05"),
     PROMPT_LEAK("system_prompt_leak", "LLM07"),
-    UNSAFE_OUTPUT("unsafe_output", "LLM05");
+    UNSAFE_OUTPUT("unsafe_output", "LLM05"),
+    TOOL_INJECTION("indirect_prompt_injection", "LLM01");
 
     private final String category;
     private final String owasp;

@@ -31,6 +31,7 @@ profiles:
     on_guard_error: block
     output_check: always
     on_unsafe_output: block
+    on_tool_injection: block
   balanced:
     semantic_check: on_unsure
     on_pii: redact
@@ -41,6 +42,7 @@ profiles:
     on_guard_error: block
     output_check: on_unsure
     on_unsafe_output: redact
+    on_tool_injection: quarantine
   permissive:
     semantic_check: never
     on_pii: allow
@@ -50,6 +52,7 @@ profiles:
     on_guard_error: allow
     output_check: never
     on_unsafe_output: allow
+    on_tool_injection: allow
 
 # Models clients may be granted. Prices are USD per 1000 tokens.
 # Local models carry an estimated compute cost so that one budget covers local and commercial use.
@@ -91,7 +94,9 @@ clients:
     profile: balanced
     models: [llama3.2:3b]
     tools:
-      allowed: [search_docs, get_weather, read_file]
+      allowed: [search_docs, get_weather, read_file, fx_rates]
+      pinned:
+        fx_rates: 99444d5856d79310ebd79f2e16bdaf641f8cb86d28d8675547fb96e3bae46981
       deny_argument_patterns:
         - "(?i)\\b(drop|truncate|delete)\\s+(table|from)\\b"
         - "\\.\\./"
@@ -103,6 +108,8 @@ clients:
     api_key_sha256: b051fc41d070b037118dec5de3ae52256c771253718549ceba004c4ad3812dc0
     profile: strict
     models: [llama3.2:3b, gpt-4o]
+    tools:
+      allowed: [search_docs]
     budgets:
       max_cost_usd: 1.00
 
@@ -110,6 +117,8 @@ clients:
     api_key_sha256: 9b9f0a01c506078b8bb33774adcfbb5c5ca0a0e06beffaee338e41e96a8066c9
     profile: permissive
     models: [llama3.2:3b, granite4:3b]
+    tools:
+      allowed: [search_docs]
 
   - id: tiny-budget
     api_key_sha256: a33f362b6bb3d38812d89db3f8ad3d51a9d6d3f1231ece84f7ca71ec901ffd54

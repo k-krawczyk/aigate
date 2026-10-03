@@ -20,6 +20,10 @@ version: 1
 #                      means the request was in the grey zone or the answer contained active markup
 #   on_unsafe_output   allow | redact | block: markup in the answer that acts on its own when rendered (images
 #                      calling out with data in the URL, scripts, frames, javascript: links); redact removes it
+#   on_tool_injection  allow | quarantine | block: a tool result (search result, web page, file, MCP output) or an
+#                      MCP tool description with instructions aimed at the assistant; quarantine replaces the result
+#                      with a notice or drops the tool definition, and the agent carries on
+#   guard_thresholds.tool_injection   judge score for tool data, default 0.5
 profiles:
   strict:
     semantic_check: always
@@ -31,6 +35,7 @@ profiles:
     on_guard_error: block
     output_check: always
     on_unsafe_output: block
+    on_tool_injection: block
   balanced:
     semantic_check: on_unsure
     on_pii: redact
@@ -41,6 +46,7 @@ profiles:
     on_guard_error: block
     output_check: on_unsure
     on_unsafe_output: redact
+    on_tool_injection: quarantine
   permissive:
     semantic_check: never
     on_pii: allow
@@ -50,6 +56,7 @@ profiles:
     on_guard_error: allow
     output_check: never
     on_unsafe_output: allow
+    on_tool_injection: allow
 
 # Models clients may be granted. Prices are USD per 1000 tokens.
 # Local models carry an estimated compute cost so that one budget covers local and commercial use.
@@ -144,6 +151,7 @@ clients:
     models: [llama3.2:3b]
     tools:
       allowed: [search_docs, get_weather, read_file]
+      # pinned: { tool_name: <sha256 of the approved description> } refuses a tool whose MCP server changed it
       deny_argument_patterns:
         - "(?i)\\b(drop|truncate|delete)\\s+(table|from)\\b"
         - "\\.\\./"

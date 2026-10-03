@@ -12,7 +12,8 @@ public record Profile(
         GuardThresholds guardThresholds,
         Action onGuardError,
         SemanticMode outputCheck,
-        Action onUnsafeOutput) {
+        Action onUnsafeOutput,
+        ToolInjectionAction onToolInjection) {
 
     public enum SemanticMode { ALWAYS, ON_UNSURE, NEVER }
 
@@ -20,7 +21,20 @@ public record Profile(
 
     public record RiskThresholds(double unsureAbove, double blockAbove) { }
 
-    public record GuardThresholds(double harmful, double injection) { }
+    /** What happens to a tool result or tool definition that carries instructions aimed at the assistant. */
+    public enum ToolInjectionAction { ALLOW, QUARANTINE, BLOCK }
+
+    /** toolInjection: judge score from which tool data counts as an injection; 0.5 when not set. */
+    public record GuardThresholds(double harmful, double injection, Double toolInjection) {
+
+        public GuardThresholds {
+            toolInjection = toolInjection == null ? 0.5 : toolInjection;
+        }
+
+        public GuardThresholds(double harmful, double injection) {
+            this(harmful, injection, null);
+        }
+    }
 
     /**
      * The stricter of the two profiles on every setting separately: the harsher action, the more frequent guard
@@ -36,10 +50,12 @@ public record Profile(
                 new RiskThresholds(Math.min(risk.unsureAbove(), other.risk.unsureAbove()),
                         Math.min(risk.blockAbove(), other.risk.blockAbove())),
                 new GuardThresholds(Math.min(guardThresholds.harmful(), other.guardThresholds.harmful()),
-                        Math.min(guardThresholds.injection(), other.guardThresholds.injection())),
+                        Math.min(guardThresholds.injection(), other.guardThresholds.injection()),
+                        Math.min(guardThresholds.toolInjection(), other.guardThresholds.toolInjection())),
                 harsher(onGuardError, other.onGuardError),
                 outputCheck.ordinal() <= other.outputCheck.ordinal() ? outputCheck : other.outputCheck,
-                harsher(onUnsafeOutput, other.onUnsafeOutput));
+                harsher(onUnsafeOutput, other.onUnsafeOutput),
+                onToolInjection.ordinal() >= other.onToolInjection.ordinal() ? onToolInjection : other.onToolInjection);
     }
 
     private static Action harsher(Action a, Action b) {
@@ -56,5 +72,6 @@ public record Profile(
         onGuardError = onGuardError == null ? Action.BLOCK : onGuardError;
         outputCheck = outputCheck == null ? SemanticMode.ON_UNSURE : outputCheck;
         onUnsafeOutput = onUnsafeOutput == null ? Action.REDACT : onUnsafeOutput;
+        onToolInjection = onToolInjection == null ? ToolInjectionAction.QUARANTINE : onToolInjection;
     }
 }

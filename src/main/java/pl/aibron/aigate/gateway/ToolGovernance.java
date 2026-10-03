@@ -49,6 +49,13 @@ public class ToolGovernance {
                 return Optional.of(new Violation(poisoned.getFirst(),
                         "Description of tool '" + name + "' matches known attack " + poisoned.getFirst().label()));
             }
+            // Rug pull: an MCP server can change a tool's description after it was reviewed.
+            var pinned = policy.pinned().get(name);
+            var currentDescription = tool.path("function").path("description").asText("");
+            if (pinned != null && !pinned.equalsIgnoreCase(pl.aibron.aigate.identity.ApiKeyResolver.sha256Hex(currentDescription))) {
+                return Optional.of(new Violation(new Finding("tool.pin_mismatch", FindingKind.TOOL, "TOOL_CHANGED", 0, 0,
+                        "tool_poisoning", "LLM03"), "Tool '" + name + "' changed since it was approved"));
+            }
         }
         for (JsonNode message : request.path("messages")) {
             var violation = checkCalls(message.path("tool_calls"), policy);

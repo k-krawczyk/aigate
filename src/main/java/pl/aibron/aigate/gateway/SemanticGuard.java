@@ -46,6 +46,8 @@ public class SemanticGuard {
     private final String injectionModel;
     private final Duration timeout;
     private final String judgePrompt;
+    private final String toolResultPrompt;
+    private final String toolDescriptionPrompt;
 
     public SemanticGuard(ProducerTemplate producer,
                          @Value("${aigate.guards.uri}") String uri,
@@ -57,11 +59,28 @@ public class SemanticGuard {
         this.harmModel = harmModel;
         this.injectionModel = injectionModel;
         this.timeout = timeout;
-        try (var in = SemanticGuard.class.getResourceAsStream("/prompts/injection-judge.txt")) {
-            this.judgePrompt = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).trim();
+        this.judgePrompt = prompt("injection-judge.txt");
+        this.toolResultPrompt = prompt("tool-result-judge.txt");
+        this.toolDescriptionPrompt = prompt("tool-description-judge.txt");
+    }
+
+    private static String prompt(String name) {
+        try (var in = SemanticGuard.class.getResourceAsStream("/prompts/" + name)) {
+            return new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).trim();
         } catch (java.io.IOException | NullPointerException e) {
-            throw new IllegalStateException("prompts/injection-judge.txt missing from the classpath", e);
+            throw new IllegalStateException("prompts/" + name + " missing from the classpath", e);
         }
+    }
+
+    /**
+     * Probability that tool data carries instructions aimed at the assistant. Tool results and tool descriptions
+     * get different prompts: a description legitimately tells the agent how to call the tool, a search result
+     * should not address the agent at all.
+     */
+    public double judgeToolData(String text, boolean description) throws Exception {
+        var reply = call(guardRequest(injectionModel, description ? toolDescriptionPrompt : toolResultPrompt,
+                "TEXT:\n<<<\n" + guardInput(text) + "\n>>>"));
+        return probability(JSON.readTree(reply.get(timeout.toMillis(), TimeUnit.MILLISECONDS)), "yes", "no");
     }
 
     /**
