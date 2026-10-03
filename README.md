@@ -114,7 +114,7 @@ Not covered, on purpose: LLM04 data and model poisoning, LLM08 vector stores (no
 - **Budgets** per window: tokens, USD, model seconds, loop breaker. Clients override single fields.
 - **Clients**: key hash, profile, models, tool allowlist and argument deny patterns.
 
-Edit the file while the gateway runs. A valid change applies within about a second, also through the Docker bind mount. An invalid change (including a misspelled key) is rejected as a whole, the previous policy stays active, and the dashboard shows the errors.
+Edit the file while the gateway runs. A valid change applies within about a second, also through the Docker bind mount. An invalid change (including a misspelled key) is rejected as a whole, the previous policy stays active, and the dashboard shows the errors. Every valid policy is also saved as a last-known-good copy in the data directory; if the file is broken when the gateway starts, it runs that copy, reports the errors and records a `policy_reload REJECTED` audit event, instead of refusing to start.
 
 ## Attack signature feed
 

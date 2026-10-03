@@ -2,6 +2,7 @@
 services:
   aigate:
     build: .
+    restart: unless-stopped
     ports:
       - "8080:8080"
     environment:
@@ -10,6 +11,7 @@ services:
       AIGATE_SIGNATURES_FEED_URL: http://signature-feed/signatures.json
       AIGATE_DB_URL: jdbc:h2:file:/app/data/aigate
       AIGATE_POLICY_DIR: /app/policy
+      AIGATE_POLICY_LAST_KNOWN_GOOD: /app/data/policy.last-known-good.yaml
     volumes:
       # The directory, not the file: editors that save by rename would leave a single-file mount on the old inode.
       - ./policy:/app/policy

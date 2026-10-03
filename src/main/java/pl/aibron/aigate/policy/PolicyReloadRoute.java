@@ -26,5 +26,14 @@ public class PolicyReloadRoute extends RouteBuilder {
                     exchange.getMessage().setHeader("revision", store.active().revision());
                 })
                 .to("direct:audit-policy-reload");
+
+        // A start from the last known good copy is a security-relevant event: the running policy is not the file.
+        from("timer:policy-startup-check?repeatCount=1&delay=1000").routeId("policy-startup-check")
+                .filter(exchange -> store.active().fromLastKnownGood())
+                .process(exchange -> {
+                    exchange.getMessage().setBody(store.lastReload());
+                    exchange.getMessage().setHeader("revision", store.active().revision());
+                })
+                .to("direct:audit-policy-reload");
     }
 }

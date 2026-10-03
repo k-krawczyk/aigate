@@ -15,3 +15,6 @@ data/
 *.iml
 .vscode/
 .DS_Store
+
+# Python virtual environments for demo/
+.venv/

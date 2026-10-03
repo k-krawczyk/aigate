@@ -26,6 +26,8 @@ camel:
 aigate:
   policy:
     dir: ${AIGATE_POLICY_DIR:policy}
+    # Copy of the last policy that passed validation; used if policy.yaml is broken when the gateway starts.
+    last-known-good: ${AIGATE_POLICY_LAST_KNOWN_GOOD:data/policy.last-known-good.yaml}
   upstream:
     # Ollama's OpenAI-compatible endpoint. throwExceptionOnFailure=false passes upstream errors through to the client.
     uri: ${AIGATE_UPSTREAM_URI:http://localhost:11434/v1/chat/completions?throwExceptionOnFailure=false}

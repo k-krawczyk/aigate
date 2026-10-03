@@ -43,6 +43,7 @@ public abstract class GatewayTestSupport {
     @DynamicPropertySource
     static void policyDir(DynamicPropertyRegistry registry) {
         registry.add("aigate.policy.dir", POLICY_DIR::toString);
+        registry.add("aigate.policy.last-known-good", () -> POLICY_DIR.resolve("last-known-good.yaml").toString());
     }
 
     private static Path copyTestPolicy() {
