@@ -24,17 +24,31 @@ public class BudgetGuard {
 
     private final BudgetLedger ledger;
     private final LoopBreaker loopBreaker;
+    private final boolean blockWhenStoreDown;
 
-    public BudgetGuard(BudgetLedger ledger, LoopBreaker loopBreaker) {
+    public BudgetGuard(BudgetLedger ledger, LoopBreaker loopBreaker,
+                       @org.springframework.beans.factory.annotation.Value("${aigate.budget.on-store-error:allow}")
+                       String onStoreError) {
         this.ledger = ledger;
         this.loopBreaker = loopBreaker;
+        this.blockWhenStoreDown = "block".equalsIgnoreCase(onStoreError);
     }
 
     public void admit(Exchange exchange) {
         var policy = exchange.getProperty(ExchangeKeys.POLICY, Policy.class);
         var client = exchange.getProperty(ExchangeKeys.CLIENT, ClientSpec.class);
         var budgets = policy.budgetsOf(client);
-        var used = ledger.usage(client.id(), budgets.windowDuration());
+        BudgetLedger.Usage used;
+        try {
+            used = ledger.usage(client.id(), budgets.windowDuration());
+        } catch (BudgetStoreUnavailableException e) {
+            if (blockWhenStoreDown) {
+                throw new GatewayRejection(503, "budget_store_unavailable", CATEGORY, OWASP,
+                        "Budget store unavailable, try again later");
+            }
+            // Availability over accuracy: the request goes on unmetered, counted in aigate.budget.store.errors.
+            used = BudgetLedger.Usage.NONE;
+        }
 
         if (budgets.maxTokens() != null && used.tokens() >= budgets.maxTokens()) {
             reject("token_budget_exceeded", "Token budget of " + budgets.maxTokens() + " per " + budgets.window()
@@ -85,7 +99,8 @@ public class BudgetGuard {
         var steps = (Map<String, Long>) exchange.getProperty(ExchangeKeys.STEP_TIMINGS, Map.class);
         long modelMillis = steps == null ? 0 : steps.getOrDefault("upstream", 0L) / 1000;
 
-        ledger.charge(client.id(), new BudgetLedger.Charge(Instant.now(), in + out, cost, modelMillis));
+        ledger.charge(client.id(), new BudgetLedger.Charge(Instant.now(), in + out, cost, modelMillis),
+                policy.budgetsOf(client).windowDuration());
         exchange.setProperty(ExchangeKeys.USAGE_TOKENS, new long[] {in, out});
         exchange.setProperty(ExchangeKeys.COST_USD, cost);
     }

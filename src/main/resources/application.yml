@@ -34,6 +34,12 @@ aigate:
 
   signatures:
     feed-url: ${AIGATE_SIGNATURES_FEED_URL:}
+  budget:
+    # memory: one gateway instance; redis: every instance shares the same budgets and windows.
+    store: ${AIGATE_BUDGET_STORE:memory}
+    redis-url: ${AIGATE_BUDGET_REDIS_URL:redis://localhost:6379}
+    # allow: a Redis outage lets requests through unmetered (counted); block: such requests get 503.
+    on-store-error: ${AIGATE_BUDGET_ON_STORE_ERROR:allow}
   siem:
     # Overrides the host of syslog sinks in the policy, e.g. with a container hostname.
     syslog-host: ${AIGATE_SIEM_SYSLOG_HOST:}

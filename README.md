@@ -43,7 +43,7 @@ The policy stores only SHA-256 hashes of these keys.
 docker compose --profile test run --rm tests  # no JDK needed either
 ```
 
-221 tests, all with a stubbed model and stubbed guards, so they run offline in about 15 seconds once dependencies are downloaded. Test names read as a checklist (`blocked: strict profile refuses a request containing a PESEL`, `allowed: ordinary multi-turn chat with growing history does not trip the loop breaker`). Every control has at least one case that must pass and one that must be stopped.
+225 tests, all with a stubbed model and stubbed guards, so they run offline in about 15 seconds once dependencies are downloaded. Test names read as a checklist (`blocked: strict profile refuses a request containing a PESEL`, `allowed: ordinary multi-turn chat with growing history does not trip the loop breaker`). Every control has at least one case that must pass and one that must be stopped.
 
 | Suite | What it proves |
 |---|---|
@@ -53,6 +53,7 @@ docker compose --profile test run --rm tests  # no JDK needed either
 | `RiskScorerTest`, `SemanticCheckTest` | Injection risk score; guards called only when needed; fail-closed |
 | `KnownAttackSignaturesTest`, `SignatureFeedTest` | Historical exploits; live feed update over HTTP, invalid feed and feed outage |
 | `BudgetGovernanceTest` | Token and cost budgets, loop breaker |
+| `RedisBudgetLedgerTest`, `SharedBudgetGatewayTest` | Budgets shared across instances in a real Redis (Testcontainers; skipped without Docker), sliding window, fast failure when Redis is down |
 | `PolicyLoaderTest`, `PolicyHotReloadTest` | Validation, hot reload, editor-style saves, broken edits keep the old policy |
 | `AuthenticationTest`, `ModelAllowlistTest` | API keys, model allowlist |
 | `OidcAuthenticationTest` | IdP tokens against a local JWKS: valid, expired, wrong audience or issuer, foreign key, `alg: none`, HMAC confusion, unknown agent; groups tighten but never loosen |
@@ -168,11 +169,13 @@ The agent uses the official OpenAI SDK; the only AIGate-specific line is `base_u
 | Signature feed URL | from the policy | `AIGATE_SIGNATURES_FEED_URL` |
 | Audit database | `./data/aigate` (H2) | `AIGATE_DB_URL` |
 | Syslog host for SIEM sinks | from the policy | `AIGATE_SIEM_SYSLOG_HOST` |
+| Budget store | `memory` (one instance) or `redis` (shared by all instances) | `AIGATE_BUDGET_STORE`, `AIGATE_BUDGET_REDIS_URL` |
+| On budget store outage | `allow` (unmetered, counted) or `block` (503) | `AIGATE_BUDGET_ON_STORE_ERROR` |
 
 ## Scope and known limits
 
 - Streaming: the gateway needs the whole answer to check it, so a `stream=true` client gets the checked answer as one SSE chunk.
-- Budgets and the loop breaker are in memory, per instance. Several instances need a shared store such as Redis.
+- Budgets can be shared by several gateway instances through Redis (`AIGATE_BUDGET_STORE=redis`); the loop breaker is still per instance.
 - Agent-to-MCP traffic is governed through tool definitions and tool calls in chat completions; there is no separate MCP proxy.
 - The guard models are small local models. The injection judge misses some role-play jailbreaks; known ones are covered by feed signatures. Granite Guardian 3 (2B) was evaluated and dropped because it scored ordinary requests as jailbreaks.
 

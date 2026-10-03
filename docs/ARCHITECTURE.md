@@ -262,7 +262,7 @@ Rotation is a restart of the gateway (or a rolling restart of the replicas); the
 
 | Today | Production path |
 |---|---|
-| Budget counters in memory, one instance | Redis with atomic counters, gateway becomes stateless |
+| Budget counters in memory, one instance | Implemented: `AIGATE_BUDGET_STORE=redis` keeps one sorted set per client, updated by Lua scripts so instances never see half a charge; the loop breaker is still per instance |
 | H2 file | Postgres for the dashboard; SIEM sinks as above |
 | API keys in policy | Corporate IdP through `OidcJwtResolver` |
 | Policy file on disk | Same file from git or a config server; the reload route does not change |

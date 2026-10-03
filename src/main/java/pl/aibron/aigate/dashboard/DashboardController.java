@@ -113,7 +113,12 @@ public class DashboardController {
         model.addAttribute("lastReload", policyStore.lastReload());
         model.addAttribute("budgets", policy.clients().stream().map(client -> {
             var budgets = policy.budgetsOf(client);
-            var used = ledger.usage(client.id(), budgets.windowDuration());
+            BudgetLedger.Usage used;
+            try {
+                used = ledger.usage(client.id(), budgets.windowDuration());
+            } catch (pl.aibron.aigate.budget.BudgetStoreUnavailableException e) {
+                used = BudgetLedger.Usage.NONE;
+            }
             return new BudgetMeter(client.id(), client.profile(), budgets.window(), used.tokens(),
                     budgets.maxTokens(), used.costUsd(), budgets.maxCostUsd(), used.modelSeconds(),
                     budgets.maxModelSeconds(), used.requests());
