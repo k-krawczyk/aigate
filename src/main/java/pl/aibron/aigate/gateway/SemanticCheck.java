@@ -52,6 +52,7 @@ public class SemanticCheck {
                     "Request blocked: prompt injection indicators (risk " + format(risk.score()) + ")");
         }
         boolean unsure = risk.score() >= profile.risk().unsureAbove() && risk.score() > 0;
+        exchange.setProperty(ExchangeKeys.INPUT_UNSURE, unsure);
         if (profile.semanticCheck() == Profile.SemanticMode.NEVER
                 || profile.semanticCheck() == Profile.SemanticMode.ON_UNSURE && !unsure) {
             return;

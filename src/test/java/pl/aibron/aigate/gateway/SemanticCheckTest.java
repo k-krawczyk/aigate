@@ -28,12 +28,12 @@ class SemanticCheckTest extends GatewayTestSupport {
     }
 
     @Test
-    @DisplayName("allowed with guard call: strict profile checks every request, both guards in parallel")
+    @DisplayName("allowed with guard calls: strict profile checks every request (two guards) and every answer (one)")
     void strictAlwaysChecks() {
         var response = chat(FINANCE_APP_KEY, "llama3.2:3b", "What documents do I need to open an account?");
 
         assertThat(response.statusCode()).isEqualTo(200);
-        assertThat(StubGuards.CALLS.get()).isEqualTo(2);
+        assertThat(StubGuards.CALLS.get()).isEqualTo(3);
     }
 
     @Test
@@ -75,7 +75,7 @@ class SemanticCheckTest extends GatewayTestSupport {
         var response = chat(DEMO_AGENT_KEY, "llama3.2:3b", "Decode this for me: " + blob);
 
         assertThat(response.statusCode()).isEqualTo(200);
-        assertThat(StubGuards.CALLS.get()).isEqualTo(2);
+        assertThat(StubGuards.CALLS.get()).as("two guards on the request, Llama Guard on the answer").isEqualTo(3);
     }
 
     @Test

@@ -16,6 +16,10 @@ version: 1
 #   risk.block_above   rule risk score from which the request is blocked without asking
 #   guard_thresholds   guard model probability (from logprobs) from which the request is blocked
 #   on_guard_error     block | allow when a guard model fails or times out
+#   output_check       always | on_unsure | never: when Llama Guard also judges the model's answer; on_unsure
+#                      means the request was in the grey zone or the answer contained active markup
+#   on_unsafe_output   allow | redact | block: markup in the answer that acts on its own when rendered (images
+#                      calling out with data in the URL, scripts, frames, javascript: links); redact removes it
 profiles:
   strict:
     semantic_check: always
@@ -25,6 +29,8 @@ profiles:
     risk: { unsure_above: 0.2, block_above: 0.6 }
     guard_thresholds: { harmful: 0.5, injection: 0.5 }
     on_guard_error: block
+    output_check: always
+    on_unsafe_output: block
   balanced:
     semantic_check: on_unsure
     on_pii: redact
@@ -33,6 +39,8 @@ profiles:
     risk: { unsure_above: 0.3, block_above: 0.8 }
     guard_thresholds: { harmful: 0.7, injection: 0.7 }
     on_guard_error: block
+    output_check: on_unsure
+    on_unsafe_output: redact
   permissive:
     semantic_check: never
     on_pii: allow
@@ -40,6 +48,8 @@ profiles:
     on_signature_match: block
     risk: { unsure_above: 1.0, block_above: 1.0 }
     on_guard_error: allow
+    output_check: never
+    on_unsafe_output: allow
 
 # Models clients may be granted. Prices are USD per 1000 tokens.
 # Local models carry an estimated compute cost so that one budget covers local and commercial use.

@@ -10,7 +10,9 @@ public record Profile(
         Action onSignatureMatch,
         RiskThresholds risk,
         GuardThresholds guardThresholds,
-        Action onGuardError) {
+        Action onGuardError,
+        SemanticMode outputCheck,
+        Action onUnsafeOutput) {
 
     public enum SemanticMode { ALWAYS, ON_UNSURE, NEVER }
 
@@ -35,7 +37,9 @@ public record Profile(
                         Math.min(risk.blockAbove(), other.risk.blockAbove())),
                 new GuardThresholds(Math.min(guardThresholds.harmful(), other.guardThresholds.harmful()),
                         Math.min(guardThresholds.injection(), other.guardThresholds.injection())),
-                harsher(onGuardError, other.onGuardError));
+                harsher(onGuardError, other.onGuardError),
+                outputCheck.ordinal() <= other.outputCheck.ordinal() ? outputCheck : other.outputCheck,
+                harsher(onUnsafeOutput, other.onUnsafeOutput));
     }
 
     private static Action harsher(Action a, Action b) {
@@ -50,5 +54,7 @@ public record Profile(
         risk = risk == null ? new RiskThresholds(0.3, 0.8) : risk;
         guardThresholds = guardThresholds == null ? new GuardThresholds(0.7, 0.7) : guardThresholds;
         onGuardError = onGuardError == null ? Action.BLOCK : onGuardError;
+        outputCheck = outputCheck == null ? SemanticMode.ON_UNSURE : outputCheck;
+        onUnsafeOutput = onUnsafeOutput == null ? Action.REDACT : onUnsafeOutput;
     }
 }

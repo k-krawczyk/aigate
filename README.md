@@ -43,13 +43,14 @@ The policy stores only SHA-256 hashes of these keys.
 docker compose --profile test run --rm tests  # no JDK needed either
 ```
 
-226 tests, all with a stubbed model and stubbed guards, so they run offline in about 15 seconds once dependencies are downloaded. Test names read as a checklist (`blocked: strict profile refuses a request containing a PESEL`, `allowed: ordinary multi-turn chat with growing history does not trip the loop breaker`). Every control has at least one case that must pass and one that must be stopped.
+260 tests, all with a stubbed model and stubbed guards, so they run offline in about 15 seconds once dependencies are downloaded. Test names read as a checklist (`blocked: strict profile refuses a request containing a PESEL`, `allowed: ordinary multi-turn chat with growing history does not trip the loop breaker`). Every control has at least one case that must pass and one that must be stopped.
 
 | Suite | What it proves |
 |---|---|
 | `PiiDetectorsTest`, `SecretDetectorsTest` | Detectors and checksums (PESEL, IBAN/NRB mod 97, Luhn), and what must not be flagged |
 | `RequestContentPolicyTest`, `ResponseInspectionTest` | Allow / redact / block per profile, in both directions; system prompt leakage |
 | `ToolGovernanceTest` | Tool allowlist, argument deny patterns, replayed tool calls |
+| `OutputSafetyTest`, `OutputChecksTest` | Exfiltration images, scripts, frames and `javascript:` links in answers; code blocks untouched; Llama Guard on answers per profile |
 | `RiskScorerTest`, `SemanticCheckTest` | Injection risk score; guards called only when needed; fail-closed |
 | `KnownAttackSignaturesTest`, `SignatureFeedTest` | Historical exploits; live feed update over HTTP, invalid feed and feed outage |
 | `BudgetGovernanceTest` | Token and cost budgets, loop breaker |
@@ -105,6 +106,8 @@ Java 21, Spring Boot 4.1.1, Apache Camel 4.22.1, H2, Micrometer, Resilience4j, T
 | Known exploits on AI infrastructure from an external feed (17 signatures with CVE or source) | rules | LLM03, LLM05, LLM01 |
 | Tool allowlist, argument deny patterns, poisoned tool descriptions | rules | LLM06, LLM05 |
 | PII and secrets in answers and tool-call arguments (silent masking or block) | rules | LLM02 |
+| Active markup in answers: images calling out with data in the URL, scripts, frames, `javascript:` links (removed or blocked; code blocks left alone) | rules | LLM05 |
+| Harmful answers the input checks missed (a jailbreak that worked): Llama Guard judges the answer per `output_check` | semantic | - |
 | System prompt leakage: canary token and verbatim overlap | rules | LLM07 |
 | Token, cost and model-time budgets; loop breaker; circuit breaker | rules | LLM10 |
 
@@ -178,6 +181,6 @@ The agent uses the official OpenAI SDK; the only AIGate-specific line is `base_u
 - Streaming: the gateway needs the whole answer to check it, so a `stream=true` client gets the checked answer as one SSE chunk.
 - Budgets can be shared by several gateway instances through Redis (`AIGATE_BUDGET_STORE=redis`); the loop breaker is still per instance.
 - Agent-to-MCP traffic is governed through tool definitions and tool calls in chat completions; there is no separate MCP proxy.
-- The guard models are small local models. The injection judge misses some role-play jailbreaks; known ones are covered by feed signatures. Granite Guardian 3 (2B) was evaluated and dropped because it scored ordinary requests as jailbreaks.
+- The guard models are small local models. The injection judge misses some role-play jailbreaks; known ones are covered by feed signatures, and on the strict profile Llama Guard also judges every answer, which catches a harmful answer the input checks let through (in our checks: 0.96 on a napalm recipe after the "grandma" jailbreak, 0.01 on the harmless reply). Granite Guardian 3 (2B) was evaluated and dropped because it scored ordinary requests as jailbreaks.
 
 Open-source components and AI tools used: [THIRD_PARTY.md](THIRD_PARTY.md).

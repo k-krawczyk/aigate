@@ -19,11 +19,13 @@ public class ChatCompletionsRoute extends RouteBuilder {
     private final ResponseInspection responseInspection;
     private final BudgetGuard budgetGuard;
     private final SemanticCheck semanticCheck;
+    private final OutputSemanticCheck outputSemanticCheck;
 
     public ChatCompletionsRoute(GatewayPipeline pipeline, ContentInspection contentInspection,
                                 ResponseInspection responseInspection, BudgetGuard budgetGuard,
-                                SemanticCheck semanticCheck) {
+                                SemanticCheck semanticCheck, OutputSemanticCheck outputSemanticCheck) {
         this.semanticCheck = semanticCheck;
+        this.outputSemanticCheck = outputSemanticCheck;
         this.pipeline = pipeline;
         this.contentInspection = contentInspection;
         this.responseInspection = responseInspection;
@@ -68,6 +70,7 @@ public class ChatCompletionsRoute extends RouteBuilder {
                 .process(GatewayPipeline.endStep("upstream"))
                 .process(budgetGuard::charge)
                 .process(timed("response_rules", responseInspection::inspectResponse))
+                .process(timed("output_semantic", outputSemanticCheck::evaluate))
                 .setHeader("X-AIGate-Request-Id", exchangeProperty(ExchangeKeys.REQUEST_ID))
                 .wireTap("direct:audit")
                 .process(StreamAdapter::toEventStream);

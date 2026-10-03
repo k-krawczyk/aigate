@@ -64,6 +64,24 @@ public class SemanticGuard {
         }
     }
 
+    /**
+     * Llama Guard on the model's answer. With a user turn followed by an assistant turn, Llama Guard 3 classifies
+     * the last (assistant) turn, so the question gives context and the answer is what gets judged.
+     */
+    public Verdict evaluateAnswer(String question, String answer) throws Exception {
+        long start = System.nanoTime();
+        var request = JSON.createObjectNode();
+        request.put("model", harmModel).put("temperature", 0).put("max_tokens", 8)
+                .put("logprobs", true).put("top_logprobs", 5);
+        var messages = request.putArray("messages");
+        messages.addObject().put("role", "user").put("content", guardInput(question));
+        messages.addObject().put("role", "assistant").put("content", guardInput(answer));
+        var reply = JSON.readTree(call(request.toString()).get(timeout.toMillis(), TimeUnit.MILLISECONDS));
+        var lines = content(reply).split("\\s+");
+        String category = lines.length > 1 ? (lines[1] + " " + HAZARDS.getOrDefault(lines[1].replace(",", ""), "")).trim() : null;
+        return new Verdict(probability(reply, "unsafe", "safe"), category, 0, (System.nanoTime() - start) / 1_000_000);
+    }
+
     /** Loads both models into memory so the first real request does not pay the cold start (seconds). */
     public void warmUp() {
         call(guardRequest(harmModel, null, "hello"));

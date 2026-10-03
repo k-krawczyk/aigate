@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import pl.aibron.aigate.inspection.Finding;
 import pl.aibron.aigate.inspection.FindingKind;
+import pl.aibron.aigate.inspection.OutputSafety;
 import pl.aibron.aigate.inspection.TextInspector;
 import pl.aibron.aigate.policy.ClientSpec;
 import pl.aibron.aigate.policy.Policy;
@@ -30,11 +31,14 @@ public class ResponseInspection {
     private final TextInspector inspector;
     private final ToolGovernance tools;
     private final SystemPromptGuard promptGuard;
+    private final OutputSafety outputSafety;
 
-    public ResponseInspection(TextInspector inspector, ToolGovernance tools, SystemPromptGuard promptGuard) {
+    public ResponseInspection(TextInspector inspector, ToolGovernance tools, SystemPromptGuard promptGuard,
+                              OutputSafety outputSafety) {
         this.inspector = inspector;
         this.tools = tools;
         this.promptGuard = promptGuard;
+        this.outputSafety = outputSafety;
     }
 
     public void inspectResponse(Exchange exchange) {
@@ -80,7 +84,16 @@ public class ResponseInspection {
                 block(exchange, new Finding("output.system_prompt_leak", FindingKind.PROMPT_LEAK, "SYSTEM_PROMPT", 0, 0),
                         "Model response blocked: it reveals the system prompt");
             }
-            var findings = inspector.scan(answer);
+            // Active markup first: when a secret sits inside an exfiltration link, the whole link has to go.
+            var findings = new java.util.ArrayList<Finding>(outputSafety.scan(answer));
+            if (!findings.isEmpty()) {
+                exchange.setProperty(ExchangeKeys.OUTPUT_SIGNALS, true);
+            }
+            for (var finding : inspector.scan(answer)) {
+                if (findings.stream().noneMatch(finding::overlaps)) {
+                    findings.add(finding);
+                }
+            }
             if (findings.isEmpty()) {
                 continue;
             }
@@ -94,7 +107,9 @@ public class ResponseInspection {
             var toRedact = findings.stream()
                     .filter(f -> ContentInspection.actionFor(profile, f.kind()) == Action.REDACT).toList();
             if (!toRedact.isEmpty()) {
-                text.replace(TextInspector.mask(answer, toRedact, f -> SILENT_MASK));
+                // Silent: masked data becomes ****, active markup is removed outright.
+                text.replace(TextInspector.mask(answer, toRedact,
+                        f -> f.kind() == FindingKind.UNSAFE_OUTPUT ? "" : SILENT_MASK));
                 if (!redacted && exchange.getProperty(ExchangeKeys.DECISION) != Decision.REDACT) {
                     ContentInspection.markDecision(exchange, Decision.REDACT, toRedact.getFirst(), "response");
                 }
