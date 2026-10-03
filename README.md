@@ -59,6 +59,7 @@ docker compose --profile test run --rm tests  # no JDK needed either
 | `AuditTrailTest`, `DashboardAndExportTest` | Audit content (masked), dashboard, export, Prometheus metrics |
 | `CefFormatterTest`, `SiemForwardingTest` | CEF format and escaping; real UDP, TCP and HTTP receivers get masked events; a dead SIEM does not slow clients |
 | `ThreatCorpusTest` | The team's red-team corpus in `testdata/test-cases.json`, replayed end to end |
+| `LiveOllamaTest` | Same gateway with the real models; skipped unless `AIGATE_LIVE=true` (`AIGATE_LIVE=true ./mvnw test -Dtest=LiveOllamaTest`) |
 
 GitHub Actions runs the suite on every push.
 
@@ -105,7 +106,7 @@ Java 21, Spring Boot 4.1.1, Apache Camel 4.22.1, H2, Micrometer, Resilience4j, T
 | System prompt leakage: canary token and verbatim overlap | rules | LLM07 |
 | Token, cost and model-time budgets; loop breaker; circuit breaker | rules | LLM10 |
 
-Not covered, on purpose: LLM04 data and model poisoning, LLM08 vector stores (no RAG in scope), LLM09 misinformation.
+Not covered, on purpose: LLM04 data and model poisoning, LLM08 vector stores (no RAG in scope), LLM09 misinformation, and access control for agents' persistent or shared memory stores (the gateway sees what goes to the model, not what an agent reads from its own memory).
 
 ## Policy
 
