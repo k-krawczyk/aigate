@@ -12,7 +12,7 @@ Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ```bash
 ollama pull llama3.2:3b
 ollama pull llama-guard3:1b
-ollama pull granite3-guardian:2b
+ollama pull granite4:3b
 ```
 
 ## Run the tests

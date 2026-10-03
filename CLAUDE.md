@@ -66,7 +66,7 @@ Models (names configurable in `application.yml`; README lists the `ollama pull` 
 
 - Main model for the demo: `llama3.2:3b`.
 - Harmful-content guard: `llama-guard3:1b`. It classifies content into hazard categories S1-S14 and answers `safe` or `unsafe` plus a category. It does not detect prompt injection or jailbreaks.
-- Injection judge: `granite3-guardian:2b` (Apache 2.0), asked whether the text is a prompt injection or jailbreak attempt. Answers yes/no.
+- Injection judge: `granite4:3b` (Apache 2.0) with the prompt in `src/main/resources/prompts/injection-judge.txt`, answers Yes/No. `granite3-guardian:2b` was tried first and dropped: it scored ordinary requests such as "Check the status of order 1234" at 0.97 on the jailbreak risk.
 
 Both guards are called through the OpenAI-compatible endpoint with `logprobs: true` and `top_logprobs`; Ollama returns them (verified on 0.34). The score is the probability of the first `unsafe` / `Yes` token, which is what the policy thresholds compare against.
 

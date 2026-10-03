@@ -30,6 +30,16 @@ aigate:
     # Ollama's OpenAI-compatible endpoint. throwExceptionOnFailure=false passes upstream errors through to the client.
     uri: ${AIGATE_UPSTREAM_URI:http://localhost:11434/v1/chat/completions?throwExceptionOnFailure=false}
 
+  guards:
+    # Same OpenAI-compatible endpoint as the main model by default; guard models are small and run locally.
+    uri: ${AIGATE_GUARDS_URI:http://localhost:11434/v1/chat/completions}
+    harm-model: ${AIGATE_GUARD_HARM_MODEL:llama-guard3:1b}
+    injection-model: ${AIGATE_GUARD_INJECTION_MODEL:granite4:3b}
+    timeout: ${AIGATE_GUARDS_TIMEOUT:10s}
+    # Ollama unloads idle models after 5 minutes; a cold load takes seconds, so ping the guards more often.
+    warmup-enabled: ${AIGATE_GUARDS_WARMUP:true}
+    keep-warm-ms: 240000
+
 management:
   endpoints:
     web:

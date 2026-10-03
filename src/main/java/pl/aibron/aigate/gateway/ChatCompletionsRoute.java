@@ -18,9 +18,12 @@ public class ChatCompletionsRoute extends RouteBuilder {
     private final ContentInspection contentInspection;
     private final ResponseInspection responseInspection;
     private final BudgetGuard budgetGuard;
+    private final SemanticCheck semanticCheck;
 
     public ChatCompletionsRoute(GatewayPipeline pipeline, ContentInspection contentInspection,
-                                ResponseInspection responseInspection, BudgetGuard budgetGuard) {
+                                ResponseInspection responseInspection, BudgetGuard budgetGuard,
+                                SemanticCheck semanticCheck) {
+        this.semanticCheck = semanticCheck;
         this.pipeline = pipeline;
         this.contentInspection = contentInspection;
         this.responseInspection = responseInspection;
@@ -47,6 +50,7 @@ public class ChatCompletionsRoute extends RouteBuilder {
                 .process(timed("model_allowlist", pipeline::authorizeModel))
                 .process(timed("budget", budgetGuard::admit))
                 .process(timed("request_rules", contentInspection::inspectRequest))
+                .process(timed("semantic", semanticCheck::evaluate))
                 .process(GatewayPipeline.startStep("upstream"))
                 .to("direct:upstream")
                 .process(GatewayPipeline.endStep("upstream"))

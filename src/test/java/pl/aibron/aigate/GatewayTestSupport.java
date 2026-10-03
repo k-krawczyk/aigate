@@ -17,6 +17,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
+import pl.aibron.aigate.gateway.StubGuards;
 import pl.aibron.aigate.gateway.StubUpstream;
 
 /**
@@ -25,7 +26,7 @@ import pl.aibron.aigate.gateway.StubUpstream;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
-@Import(StubUpstream.class)
+@Import({StubUpstream.class, StubGuards.class})
 public abstract class GatewayTestSupport {
 
     public static final String DEMO_AGENT_KEY = "aigate-demo-agent-key";

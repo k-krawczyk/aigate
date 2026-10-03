@@ -10,9 +10,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.stereotype.Component;
+
+import pl.aibron.aigate.gateway.MessageText;
 
 /**
  * Detects runaway agents: the same new input arriving again and again in a short time.
@@ -30,7 +31,7 @@ public class LoopBreaker {
 
     /** Records this request and returns how many earlier similar requests fall inside the window. */
     public int similarRecent(String clientId, ObjectNode request, Duration within, double similarity) {
-        var current = shingles(newInput(request));
+        var current = shingles(MessageText.newInput(request));
         var deque = history.computeIfAbsent(clientId, id -> new ArrayDeque<>());
         var since = Instant.now().minus(within);
         int similar = 0;
@@ -46,27 +47,6 @@ public class LoopBreaker {
             deque.addLast(new Seen(Instant.now(), current));
         }
         return similar;
-    }
-
-    static String newInput(ObjectNode request) {
-        var messages = request.path("messages");
-        int lastAssistant = -1;
-        for (int i = 0; i < messages.size(); i++) {
-            if ("assistant".equals(messages.get(i).path("role").asText())) {
-                lastAssistant = i;
-            }
-        }
-        var text = new StringBuilder();
-        if (lastAssistant >= 0) {
-            for (JsonNode call : messages.get(lastAssistant).path("tool_calls")) {
-                text.append(call.path("function").toString()).append(' ');
-            }
-        }
-        for (int i = lastAssistant + 1; i < messages.size(); i++) {
-            var content = messages.get(i).path("content");
-            text.append(content.isTextual() ? content.asText() : content.toString()).append(' ');
-        }
-        return text.toString();
     }
 
     static Set<String> shingles(String text) {

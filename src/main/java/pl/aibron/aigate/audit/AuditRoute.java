@@ -106,8 +106,7 @@ public class AuditRoute extends RouteBuilder {
                 decision.name(),
                 exchange.getProperty(ExchangeKeys.CATEGORY, String.class),
                 exchange.getProperty(ExchangeKeys.OWASP, String.class),
-                findings == null || findings.isEmpty() ? null
-                        : findings.stream().map(Finding::detector).distinct().collect(Collectors.joining(",")),
+                rules(findings, exchange.getProperty(ExchangeKeys.SEMANTIC_RULE, String.class)),
                 exchange.getProperty(ExchangeKeys.EXCERPT, String.class),
                 status == null ? 200 : status,
                 promptTokens,
@@ -116,7 +115,25 @@ public class AuditRoute extends RouteBuilder {
                 started == null ? null : (System.nanoTime() - started) / 1_000_000.0,
                 steps == null ? null : new LinkedHashMap<>(steps),
                 exchange.getProperty(ExchangeKeys.POLICY_REVISION, Integer.class),
-                rejection == null ? null : rejection.getMessage());
+                detail(rejection, exchange.getProperty(ExchangeKeys.SEMANTIC_NOTE, String.class)));
+    }
+
+    private static String rules(List<Finding> findings, String semanticRule) {
+        var ids = new java.util.ArrayList<String>();
+        if (findings != null) {
+            findings.stream().map(Finding::detector).distinct().forEach(ids::add);
+        }
+        if (semanticRule != null) {
+            ids.add(semanticRule);
+        }
+        return ids.isEmpty() ? null : String.join(",", ids);
+    }
+
+    private static String detail(Exception rejection, String semanticNote) {
+        if (rejection == null) {
+            return semanticNote;
+        }
+        return semanticNote == null ? rejection.getMessage() : rejection.getMessage() + " | " + semanticNote;
     }
 
     static AuditEvent fromReload(PolicyStore.ReloadOutcome outcome, Integer revision) {

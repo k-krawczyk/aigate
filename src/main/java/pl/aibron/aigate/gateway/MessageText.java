@@ -68,4 +68,29 @@ public final class MessageText {
         response.path("choices").forEach(choice -> messages.add(choice.path("message")));
         return of(messages);
     }
+
+    /**
+     * The turn's new input: messages after the last assistant message, plus the tool calls that assistant message
+     * made. Earlier history was already checked when it was new.
+     */
+    public static String newInput(ObjectNode request) {
+        var messages = request.path("messages");
+        int lastAssistant = -1;
+        for (int i = 0; i < messages.size(); i++) {
+            if ("assistant".equals(messages.get(i).path("role").asText())) {
+                lastAssistant = i;
+            }
+        }
+        var text = new StringBuilder();
+        if (lastAssistant >= 0) {
+            for (JsonNode call : messages.get(lastAssistant).path("tool_calls")) {
+                text.append(call.path("function").toString()).append(' ');
+            }
+        }
+        for (int i = lastAssistant + 1; i < messages.size(); i++) {
+            var content = messages.get(i).path("content");
+            text.append(content.isTextual() ? content.asText() : content.toString()).append(' ');
+        }
+        return text.toString();
+    }
 }

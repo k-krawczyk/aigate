@@ -4,3 +4,7 @@ spring:
 aigate:
   upstream:
     uri: direct:stub-upstream
+  guards:
+    uri: direct:stub-guard
+    timeout: 2s
+    warmup-enabled: false

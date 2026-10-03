@@ -21,6 +21,9 @@ public final class ExchangeKeys {
     public static final String CANARY = "aigate.canary";
     public static final String USAGE_TOKENS = "aigate.usageTokens";
     public static final String COST_USD = "aigate.costUsd";
+    public static final String RISK_SCORE = "aigate.riskScore";
+    public static final String SEMANTIC_NOTE = "aigate.semanticNote";
+    public static final String SEMANTIC_RULE = "aigate.semanticRule";
 
     private ExchangeKeys() {
     }

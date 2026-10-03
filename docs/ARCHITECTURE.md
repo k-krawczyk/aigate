@@ -22,7 +22,7 @@ flowchart LR
     subgraph Ollama[Ollama on host]
         M1[llama3.2:3b<br/>main model]
         G1[llama-guard3:1b<br/>harmful content]
-        G2[granite3-guardian:2b<br/>prompt injection]
+        G2[granite4:3b<br/>injection judge]
     end
 
     POL[/policy/policy.yaml/]
@@ -109,7 +109,7 @@ otherwise                           -> ALLOW
 semantic_check: always              -> semantic check on every request
 ```
 
-The guards return `safe`/`unsafe` (Llama Guard) or `Yes`/`No` (Granite Guardian). With `logprobs` we take the probability of the first token, which gives a score to compare against `guard_thresholds`.
+The guards return `safe`/`unsafe` (Llama Guard) or `Yes`/`No` (the Granite 4 injection judge). With `logprobs` we take the probability of the first token, which gives a score to compare against `guard_thresholds`.
 
 `on_guard_error: block | allow` per profile: strict and balanced fail closed, permissive fails open.
 
@@ -140,7 +140,7 @@ OWASP Top 10 for LLM Applications, 2025 edition.
 
 | OWASP | Control in AIGate | Layer |
 |---|---|---|
-| LLM01 Prompt Injection | injection phrases from feed, risk score, Granite Guardian | rules + semantic |
+| LLM01 Prompt Injection | injection phrases from feed, risk score, Granite 4 injection judge | rules + semantic |
 | LLM02 Sensitive Information Disclosure | PII with checksums (PESEL, IBAN, card, SSN), secrets, both directions | rules |
 | LLM03 Supply Chain | feed signatures for untrusted model repos, `trust_remote_code`, pickle / `torch.load` payloads | rules |
 | LLM05 Improper Output Handling | response scan, tool-call argument deny patterns (SQL, path traversal, shell) | rules |
