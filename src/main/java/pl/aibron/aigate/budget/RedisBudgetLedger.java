@@ -6,9 +6,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
+import java.util.concurrent.locks.ReentrantLock;
+
+import io.lettuce.core.ClientOptions;
 import io.lettuce.core.RedisClient;
+import io.lettuce.core.RedisException;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.ScriptOutputType;
+import io.lettuce.core.SocketOptions;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PreDestroy;
@@ -25,8 +30,11 @@ import org.springframework.stereotype.Component;
  * Lua script, and so do adding and refreshing the expiry, so concurrent instances never see a half-applied
  * charge. Keys expire one minute after the window, so a client that stops calling leaves nothing behind.
  *
- * <p>Commands time out after 300 ms. A Redis outage surfaces as {@link BudgetStoreUnavailableException} on reads
- * (the guard decides whether that blocks) and as a logged, counted failure on writes, never as a slow request.
+ * <p>Commands and connection attempts time out after 300 ms, commands are rejected at once while the connection
+ * is down instead of being queued, and after a failed connection attempt the next one waits 5 s; meanwhile, and
+ * while another thread is connecting, calls fail immediately. A Redis outage therefore surfaces as
+ * {@link BudgetStoreUnavailableException} on reads (the guard decides whether that blocks) and as a logged,
+ * counted failure on writes, never as a slow request.
  */
 @Component
 @ConditionalOnProperty(name = "aigate.budget.store", havingValue = "redis")
@@ -48,14 +56,23 @@ public class RedisBudgetLedger implements BudgetLedger {
     private final RedisClient client;
     private final String prefix;
     private final MeterRegistry metrics;
+    private static final Duration TIMEOUT = Duration.ofMillis(300);
+    private static final long RECONNECT_BACKOFF_NANOS = Duration.ofSeconds(5).toNanos();
+
+    private final ReentrantLock connecting = new ReentrantLock();
     private volatile StatefulRedisConnection<String, String> connection;
+    private volatile long nextConnectAttempt;
 
     public RedisBudgetLedger(@Value("${aigate.budget.redis-url}") String url,
                              @Value("${aigate.budget.redis-key-prefix:aigate:budget:}") String prefix,
                              MeterRegistry metrics) {
         var uri = RedisURI.create(url);
-        uri.setTimeout(Duration.ofMillis(300));
+        uri.setTimeout(TIMEOUT);
         this.client = RedisClient.create(uri);
+        client.setOptions(ClientOptions.builder()
+                .socketOptions(SocketOptions.builder().connectTimeout(TIMEOUT).build())
+                .disconnectedBehavior(ClientOptions.DisconnectedBehavior.REJECT_COMMANDS)
+                .build());
         this.prefix = prefix;
         this.metrics = metrics;
         log.info("Budgets shared through Redis at {}:{}", uri.getHost(), uri.getPort());
@@ -102,15 +119,25 @@ public class RedisBudgetLedger implements BudgetLedger {
     /** Connected on first use, so the gateway starts even while Redis is still coming up. */
     private StatefulRedisConnection<String, String> connection() {
         var current = connection;
-        if (current == null || !current.isOpen()) {
-            synchronized (this) {
-                if (connection == null || !connection.isOpen()) {
-                    connection = client.connect();
-                }
-                current = connection;
-            }
+        if (current != null && current.isOpen()) {
+            return current;
         }
-        return current;
+        if (System.nanoTime() < nextConnectAttempt || !connecting.tryLock()) {
+            throw new RedisException("Redis unavailable, not retrying yet");
+        }
+        try {
+            if (connection == null || !connection.isOpen()) {
+                try {
+                    connection = client.connect();
+                } catch (RuntimeException e) {
+                    nextConnectAttempt = System.nanoTime() + RECONNECT_BACKOFF_NANOS;
+                    throw e;
+                }
+            }
+            return connection;
+        } finally {
+            connecting.unlock();
+        }
     }
 
     @PreDestroy
