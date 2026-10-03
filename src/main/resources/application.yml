@@ -30,6 +30,8 @@ aigate:
     # Ollama's OpenAI-compatible endpoint. throwExceptionOnFailure=false passes upstream errors through to the client.
     uri: ${AIGATE_UPSTREAM_URI:http://localhost:11434/v1/chat/completions?throwExceptionOnFailure=false}
 
+  signatures:
+    feed-url: ${AIGATE_SIGNATURES_FEED_URL:}
   guards:
     # Same OpenAI-compatible endpoint as the main model by default; guard models are small and run locally.
     uri: ${AIGATE_GUARDS_URI:http://localhost:11434/v1/chat/completions}

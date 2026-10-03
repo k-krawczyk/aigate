@@ -1,0 +1,132 @@
+{
+  "version": "2026-10-03.1",
+  "source": "AIGate curated feed",
+  "signatures": [
+    {
+      "id": "AIG-0001",
+      "name": "Pickle GLOBAL opcode importing a code-execution callable",
+      "category": "unsafe_deserialization",
+      "owasp": "LLM03",
+      "severity": "critical",
+      "pattern": "(?s)c(?:os|posix|nt|subprocess|builtins|__builtin__)\\n(?:system|popen|exec|eval|call|check_output|Popen)\\b",
+      "reference": "Python pickle documentation warning; malicious model files on Hugging Face (JFrog, 2024)"
+    },
+    {
+      "id": "AIG-0002",
+      "name": "__reduce__ returning a shell or eval call",
+      "category": "unsafe_deserialization",
+      "owasp": "LLM03",
+      "severity": "critical",
+      "pattern": "(?s)__reduce__.{0,200}(?:os\\.system|subprocess\\.|\\bexec\\(|\\beval\\(|os\\.popen)",
+      "reference": "Classic pickle RCE gadget"
+    },
+    {
+      "id": "AIG-0003",
+      "name": "PyYAML python/object tag",
+      "category": "unsafe_deserialization",
+      "owasp": "LLM03",
+      "severity": "high",
+      "pattern": "!!python/(?:object(?:/apply|/new)?|module|name):",
+      "reference": "CVE-2017-18342, CVE-2020-1747 (PyYAML full_load / unsafe load)"
+    },
+    {
+      "id": "AIG-0004",
+      "name": "torch.load without weights_only=True",
+      "category": "unsafe_deserialization",
+      "owasp": "LLM03",
+      "severity": "medium",
+      "pattern": "torch\\.load\\((?![^)]*weights_only\\s*=\\s*True)[^)]*\\)",
+      "reference": "CVE-2025-32434 (PyTorch torch.load RCE); PyTorch security advisory"
+    },
+    {
+      "id": "AIG-0005",
+      "name": "Model loaded with trust_remote_code=True",
+      "category": "supply_chain",
+      "owasp": "LLM03",
+      "severity": "high",
+      "pattern": "from_pretrained\\([^)]*trust_remote_code\\s*=\\s*True",
+      "reference": "Hugging Face transformers: remote code executes on load"
+    },
+    {
+      "id": "AIG-0006",
+      "name": "Known malicious Hugging Face model repository",
+      "category": "supply_chain",
+      "owasp": "LLM03",
+      "severity": "critical",
+      "pattern": "(?i)huggingface\\.co/(?:baller423/goober2|star23/baller13)\\b",
+      "reference": "JFrog research, Feb 2024: models with reverse-shell pickle payloads"
+    },
+    {
+      "id": "AIG-0007",
+      "name": "Ollama digest path traversal (Probllama)",
+      "category": "model_server_exploit",
+      "owasp": "LLM03",
+      "severity": "critical",
+      "pattern": "sha256[:-][^\"\\s]{0,64}\\.\\./",
+      "reference": "CVE-2024-37032"
+    },
+    {
+      "id": "AIG-0008",
+      "name": "Ray Jobs API entrypoint with download or shell",
+      "category": "model_server_exploit",
+      "owasp": "LLM03",
+      "severity": "critical",
+      "pattern": "(?s)\"entrypoint\"\\s*:\\s*\"[^\"]*(?:curl |wget |bash -c|sh -c|python3? -c)",
+      "reference": "CVE-2023-48022 (ShadowRay)"
+    },
+    {
+      "id": "AIG-0009",
+      "name": "Langflow code validation endpoint",
+      "category": "model_server_exploit",
+      "owasp": "LLM03",
+      "severity": "critical",
+      "pattern": "/api/v1/validate/code",
+      "reference": "CVE-2025-3248 (Langflow unauthenticated RCE)"
+    },
+    {
+      "id": "AIG-0010",
+      "name": "Log4Shell JNDI lookup",
+      "category": "injection_payload",
+      "owasp": "LLM05",
+      "severity": "critical",
+      "pattern": "(?i)\\$\\{\\s*jndi\\s*:\\s*(?:ldaps?|rmi|dns|iiop|nis)://",
+      "reference": "CVE-2021-44228"
+    },
+    {
+      "id": "AIG-0011",
+      "name": "Reverse shell one-liner",
+      "category": "code_execution",
+      "owasp": "LLM05",
+      "severity": "critical",
+      "pattern": "(?:bash -i >& ?/dev/tcp/|nc(?:at)? -e /bin/(?:ba)?sh|/bin/sh -i|socket\\.socket\\(.{0,80}subprocess|mkfifo /tmp/\\w+; ?nc )",
+      "reference": "Common post-exploitation payloads"
+    },
+    {
+      "id": "AIG-0012",
+      "name": "MCP tool poisoning: hidden instructions in a tool description",
+      "category": "tool_poisoning",
+      "owasp": "LLM01",
+      "severity": "high",
+      "pattern": "(?is)<important>.{0,600}(?:do not (?:tell|mention|inform)|\\.ssh|id_rsa|mcp\\.json|\\.env\\b|credentials)",
+      "reference": "Invariant Labs, MCP tool poisoning attacks (2025)"
+    },
+    {
+      "id": "AIG-0013",
+      "name": "Grandma exploit jailbreak",
+      "category": "known_jailbreak",
+      "owasp": "LLM01",
+      "severity": "medium",
+      "pattern": "(?i)(?:late|deceased|dead) (?:grandma|grandmother|granny|nana)\\b.{0,120}(?:keys?|serials?|napalm|recipe for|activation|license)",
+      "reference": "Widely reported ChatGPT jailbreak, 2023"
+    },
+    {
+      "id": "AIG-0014",
+      "name": "DAN jailbreak prompt",
+      "category": "known_jailbreak",
+      "owasp": "LLM01",
+      "severity": "high",
+      "pattern": "(?is)\\bDAN\\b.{0,80}do anything now",
+      "reference": "DAN prompt family, 2022-2024"
+    }
+  ]
+}

@@ -44,9 +44,10 @@ public class ContentInspection {
         var toolViolation = tools.checkRequest(request, client.tools());
         if (toolViolation.isPresent()) {
             var v = toolViolation.get();
-            exchange.setProperty(ExchangeKeys.FINDINGS, List.of(new Finding(v.rule(), v.kind(), v.kind().category(), 0, 0)));
-            markDecision(exchange, Decision.BLOCK, v.kind(), "request");
-            throw new GatewayRejection(403, "tool_not_allowed", v.kind().category(), v.message());
+            exchange.setProperty(ExchangeKeys.FINDINGS, List.of(v.finding()));
+            markDecision(exchange, Decision.BLOCK, v.finding(), "request");
+            throw new GatewayRejection(403, "tool_not_allowed", v.finding().category(), v.finding().owasp(),
+                    v.message());
         }
 
         var texts = MessageText.ofRequest(request);
@@ -79,15 +80,15 @@ public class ContentInspection {
 
         if (worst == Action.BLOCK) {
             var blocking = allFindings.stream().filter(f -> actionFor(profile, f.kind()) == Action.BLOCK).toList();
-            var kind = blocking.getFirst().kind();
-            markDecision(exchange, Decision.BLOCK, kind, "request");
-            throw new GatewayRejection(403, "content_blocked", kind.category(),
+            var first = blocking.getFirst();
+            markDecision(exchange, Decision.BLOCK, first, "request");
+            throw new GatewayRejection(403, "content_blocked", first.category(), first.owasp(),
                     "Request blocked by policy: contains " + labels(blocking));
         }
         if (worst == Action.REDACT) {
-            var kind = allFindings.stream().filter(f -> actionFor(profile, f.kind()) == Action.REDACT)
-                    .findFirst().orElseThrow().kind();
-            markDecision(exchange, Decision.REDACT, kind, "request");
+            var first = allFindings.stream().filter(f -> actionFor(profile, f.kind()) == Action.REDACT)
+                    .findFirst().orElseThrow();
+            markDecision(exchange, Decision.REDACT, first, "request");
         } else {
             exchange.setProperty(ExchangeKeys.DECISION, Decision.ALLOW);
         }
@@ -95,10 +96,10 @@ public class ContentInspection {
         exchange.getMessage().setBody(request.toString());
     }
 
-    static void markDecision(Exchange exchange, Decision decision, FindingKind kind, String direction) {
+    static void markDecision(Exchange exchange, Decision decision, Finding finding, String direction) {
         exchange.setProperty(ExchangeKeys.DECISION, decision);
-        exchange.setProperty(ExchangeKeys.CATEGORY, kind.category());
-        exchange.setProperty(ExchangeKeys.OWASP, kind.owasp());
+        exchange.setProperty(ExchangeKeys.CATEGORY, finding.category());
+        exchange.setProperty(ExchangeKeys.OWASP, finding.owasp());
         exchange.setProperty(ExchangeKeys.DIRECTION, direction);
     }
 

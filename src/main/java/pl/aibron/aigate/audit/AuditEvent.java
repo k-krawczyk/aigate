@@ -33,4 +33,11 @@ public record AuditEvent(
 
     public static final String CHAT = "chat";
     public static final String POLICY_RELOAD = "policy_reload";
+    public static final String FEED_UPDATE = "signature_feed";
+
+    public static AuditEvent feedUpdate(String version, int count, String origin) {
+        return new AuditEvent(java.util.UUID.randomUUID().toString(), Instant.now(), FEED_UPDATE, null, null, null,
+                null, null, null, "APPLIED", "signature_feed", null, null, null, null, null, null, null, null, null,
+                null, "Signature feed " + version + " applied: " + count + " signatures from " + origin);
+    }
 }

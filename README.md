@@ -58,6 +58,18 @@ Edit it while the gateway runs. A valid change applies to the next request, typi
 | Gateway port | `8080` | `SERVER_PORT` |
 | Policy directory | `policy` | `AIGATE_POLICY_DIR` |
 
+## Attack signature feed
+
+Known exploits against AI infrastructure (pickle and PyYAML deserialization, `torch.load`, `trust_remote_code`, known malicious Hugging Face repos, Probllama, ShadowRay, Langflow RCE, Log4Shell, reverse shells, MCP tool poisoning, known jailbreaks) are matched against prompts, answers, tool descriptions and tool-call arguments. Each signature carries its CVE or source.
+
+The gateway starts from the copy bundled in the jar and then follows `signatures.feed_url` from the policy. To play the external feed locally:
+
+```bash
+python3 -m http.server 8090 -d feed
+```
+
+Edit `feed/signatures.json` (bump `version`) and the gateway applies it within the policy's `refresh` interval. An invalid or unreachable feed keeps the current set.
+
 ## Dashboard and audit
 
 - `http://localhost:8080/dashboard`: live view, refreshed every 3 seconds. Requests in the last hour by decision, tokens, cost, policy revision and reload errors, and the latest events with category, OWASP id, matched rules and masked excerpt.

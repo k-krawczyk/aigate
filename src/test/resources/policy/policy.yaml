@@ -75,7 +75,7 @@ budgets:
 # Attack signature feed, pulled periodically. A bundled copy is used when the feed is unreachable.
 signatures:
   feed_url: http://localhost:8090/signatures.json
-  refresh: 1m
+  refresh: 1d
 
 # Callers. Only SHA-256 hashes of API keys live here; the demo keys are listed in the README.
 #   echo -n '<key>' | shasum -a 256

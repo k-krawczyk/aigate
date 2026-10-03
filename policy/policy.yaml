@@ -68,10 +68,12 @@ budgets:
     within: 60s
     similarity: 0.9           # Jaccard similarity of word shingles
 
-# Attack signature feed, pulled periodically. A bundled copy is used when the feed is unreachable.
+# Attack signature feed (known exploits on AI infrastructure), pulled periodically. The gateway starts from a
+# copy bundled in the jar; an unreachable or invalid feed keeps the current set. AIGATE_SIGNATURES_FEED_URL
+# overrides the URL, e.g. with a container hostname.
 signatures:
   feed_url: http://localhost:8090/signatures.json
-  refresh: 1m
+  refresh: 30s
 
 # Callers. Only SHA-256 hashes of API keys live here; the demo keys are listed in the README.
 #   echo -n '<key>' | shasum -a 256

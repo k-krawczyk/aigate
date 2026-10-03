@@ -58,14 +58,14 @@ public class ResponseInspection {
         var toolViolation = tools.checkResponse(response, client.tools());
         if (toolViolation.isPresent()) {
             var v = toolViolation.get();
-            block(exchange, v.kind(), v.rule(), "Model response blocked: " + v.message());
+            block(exchange, v.finding(), "Model response blocked: " + v.message());
         }
 
         boolean redacted = false;
         for (var text : MessageText.ofResponse(response)) {
             var answer = text.text();
             if (promptGuard.leaked(planted, answer)) {
-                block(exchange, FindingKind.PROMPT_LEAK, "output.system_prompt_leak",
+                block(exchange, new Finding("output.system_prompt_leak", FindingKind.PROMPT_LEAK, "SYSTEM_PROMPT", 0, 0),
                         "Model response blocked: it reveals the system prompt");
             }
             var findings = inspector.scan(answer);
@@ -76,7 +76,7 @@ public class ResponseInspection {
             var blocking = findings.stream()
                     .filter(f -> ContentInspection.actionFor(profile, f.kind()) == Action.BLOCK).toList();
             if (!blocking.isEmpty()) {
-                block(exchange, blocking.getFirst().kind(), blocking.getFirst().detector(),
+                block(exchange, blocking.getFirst(),
                         "Model response blocked by policy: contains " + blocking.getFirst().label());
             }
             var toRedact = findings.stream()
@@ -84,7 +84,7 @@ public class ResponseInspection {
             if (!toRedact.isEmpty()) {
                 text.replace(TextInspector.mask(answer, toRedact, f -> SILENT_MASK));
                 if (!redacted && exchange.getProperty(ExchangeKeys.DECISION) != Decision.REDACT) {
-                    ContentInspection.markDecision(exchange, Decision.REDACT, toRedact.getFirst().kind(), "response");
+                    ContentInspection.markDecision(exchange, Decision.REDACT, toRedact.getFirst(), "response");
                 }
                 redacted = true;
             }
@@ -94,10 +94,10 @@ public class ResponseInspection {
         }
     }
 
-    private static void block(Exchange exchange, FindingKind kind, String rule, String message) {
-        addFindings(exchange, List.of(new Finding(rule, kind, kind.category(), 0, 0)));
-        ContentInspection.markDecision(exchange, Decision.BLOCK, kind, "response");
-        throw new GatewayRejection(403, "response_blocked", kind.category(), message);
+    private static void block(Exchange exchange, Finding finding, String message) {
+        addFindings(exchange, List.of(finding));
+        ContentInspection.markDecision(exchange, Decision.BLOCK, finding, "response");
+        throw new GatewayRejection(403, "response_blocked", finding.category(), finding.owasp(), message);
     }
 
     @SuppressWarnings("unchecked")
