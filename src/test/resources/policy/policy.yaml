@@ -1,0 +1,102 @@
+# AIGate policy: the single source of truth for every control.
+#
+# The gateway watches this directory and applies a valid edit on the next request, without a restart.
+# An invalid edit is rejected as a whole: the previous policy stays active and the errors are shown on the
+# dashboard. Unknown keys are errors too, so a typo cannot silently switch a control off.
+#
+# Durations: 500ms, 30s, 15m, 1h, 1d. Thresholds and scores: 0.0 to 1.0.
+
+version: 1
+
+# Strictness levels. Each client points at one profile.
+#   semantic_check     always | on_unsure | never: when to ask the guard models
+#   on_pii, on_secret, on_signature_match
+#                      allow | redact | block: what to do with a deterministic finding
+#   risk.unsure_above  rule risk score from which the request goes to the guard models
+#   risk.block_above   rule risk score from which the request is blocked without asking
+#   guard_thresholds   guard model probability (from logprobs) from which the request is blocked
+#   on_guard_error     block | allow when a guard model fails or times out
+profiles:
+  strict:
+    semantic_check: always
+    on_pii: block
+    on_secret: block
+    on_signature_match: block
+    risk: { unsure_above: 0.2, block_above: 0.6 }
+    guard_thresholds: { harmful: 0.5, injection: 0.5 }
+    on_guard_error: block
+  balanced:
+    semantic_check: on_unsure
+    on_pii: redact
+    on_secret: block
+    on_signature_match: block
+    risk: { unsure_above: 0.3, block_above: 0.8 }
+    guard_thresholds: { harmful: 0.7, injection: 0.7 }
+    on_guard_error: block
+  permissive:
+    semantic_check: never
+    on_pii: allow
+    on_secret: redact
+    on_signature_match: block
+    risk: { unsure_above: 1.0, block_above: 1.0 }
+    on_guard_error: allow
+
+# Models clients may be granted. Prices are USD per 1000 tokens.
+# Local models carry an estimated compute cost so that one budget covers local and commercial use.
+models:
+  - name: llama3.2:3b
+    kind: local
+    price_per_1k_input: 0.0002
+    price_per_1k_output: 0.0004
+  - name: granite4:3b
+    kind: local
+    price_per_1k_input: 0.0002
+    price_per_1k_output: 0.0004
+  - name: gpt-4o
+    kind: commercial        # never called in this build; shows pricing and allowlist rules
+    price_per_1k_input: 0.0025
+    price_per_1k_output: 0.01
+
+# Global budgets, per client and per window. A client's own budgets override single fields.
+budgets:
+  window: 1h
+  max_tokens: 200000
+  max_cost_usd: 5.00
+  max_model_seconds: 600
+  loop_breaker:
+    max_similar_requests: 5   # the 6th near-identical request within the window is refused
+    within: 60s
+    similarity: 0.9           # Jaccard similarity of word shingles
+
+# Attack signature feed, pulled periodically. A bundled copy is used when the feed is unreachable.
+signatures:
+  feed_url: http://localhost:8090/signatures.json
+  refresh: 1m
+
+# Callers. Only SHA-256 hashes of API keys live here; the demo keys are listed in the README.
+#   echo -n '<key>' | shasum -a 256
+clients:
+  - id: demo-agent
+    api_key_sha256: 819cc57d378efeff27c5c1507432ff142a0cc4e3561731880c18d0d2be9df8eb
+    profile: balanced
+    models: [llama3.2:3b]
+    tools:
+      allowed: [search_docs, get_weather, read_file]
+      deny_argument_patterns:
+        - "(?i)\\b(drop|truncate|delete)\\s+(table|from)\\b"
+        - "\\.\\./"
+        - "(?i)/etc/(passwd|shadow)"
+    budgets:
+      max_tokens: 50000
+
+  - id: finance-app
+    api_key_sha256: b051fc41d070b037118dec5de3ae52256c771253718549ceba004c4ad3812dc0
+    profile: strict
+    models: [llama3.2:3b, gpt-4o]
+    budgets:
+      max_cost_usd: 1.00
+
+  - id: sandbox
+    api_key_sha256: 9b9f0a01c506078b8bb33774adcfbb5c5ca0a0e06beffaee338e41e96a8066c9
+    profile: permissive
+    models: [llama3.2:3b, granite4:3b]

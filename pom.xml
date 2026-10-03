@@ -52,6 +52,14 @@
             <artifactId>camel-jackson-starter</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.apache.camel.springboot</groupId>
+            <artifactId>camel-file-watch-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
