@@ -61,6 +61,7 @@ docker compose --profile test run --rm tests  # no JDK needed either
 | `CefFormatterTest`, `SiemForwardingTest`, `KafkaSinkTest` | CEF format and escaping; real UDP, TCP, HTTP receivers and an embedded Kafka broker get masked events; a dead SIEM or broker does not slow clients |
 | `ThreatCorpusTest` | The team's red-team corpus in `testdata/test-cases.json`, replayed end to end |
 | `LiveOllamaTest` | Same gateway with the real models; skipped unless `AIGATE_LIVE=true` (`AIGATE_LIVE=true ./mvnw test -Dtest=LiveOllamaTest`) |
+| `LiveSplunkHecTest` | HEC sink against a real Splunk Enterprise 10.6 in Testcontainers (amd64 image, a few minutes to start); skipped unless `AIGATE_LIVE=true` and Docker |
 
 GitHub Actions runs the suite on every push.
 
