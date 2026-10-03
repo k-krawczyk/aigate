@@ -89,6 +89,11 @@ Supporting routes:
 - Policy reload: on file change, parse and validate; on success swap the active policy and record an audit event; on failure keep the previous policy and surface the error on the dashboard. Watch the directory, not the file: editors that save by rename break single-file bind mounts in Docker.
 - Signature feed: on a timer, fetch a JSON list of signatures from the URL in the policy, with a bundled file as fallback. Docker Compose serves `feed/signatures.json` from a small static server so the demo can add a signature live and show it being picked up.
 
+Extension points (see `docs/ARCHITECTURE.md`, section 8). Keep these as interfaces from day one, even though the first build has one implementation each:
+
+- `IdentityResolver`: header -> `CallerIdentity(clientId, subject, onBehalfOf, groups, authMethod)`. First implementation: API key. Target: corporate IdP via OIDC JWT.
+- `AuditSink`: receives every `AuditEvent` from the wire-tap; sinks are independent and a failing sink never blocks the others or the response. First implementation: H2. Target: SIEM over syslog/CEF, Splunk HEC, Kafka.
+
 A blocked request returns HTTP 403 with an OpenAI-style error body that includes the audit event ID and the reason category, never the sensitive content itself.
 
 ## Policy file
