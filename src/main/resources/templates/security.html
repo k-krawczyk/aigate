@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('AIGate Security', 'Blocked and redacted AI interactions by OWASP category, per-step latency, policy and signature feed state.')}"></head>
+<body>
+<header th:replace="~{fragments :: bar}"></header>
+<main>
+  <div class="live" hx-get="/dashboard/security/live" th:attr="hx-vals=${decisionFilter == null ? '{}' : '{&quot;decision&quot;:&quot;' + decisionFilter + '&quot;}'}"
+       hx-trigger="every 3s" hx-swap="innerHTML">
+    <th:block th:fragment="live">
+      <div th:replace="~{fragments :: policyline}"></div>
+
+      <div class="kpis">
+        <div class="kpi"><span class="label">Requests, 24 h</span><span class="value" th:text="${summary.total()}">0</span></div>
+        <div class="kpi allowed"><span class="label">Allowed</span><span class="value" th:text="${summary.allowed()}">0</span></div>
+        <div class="kpi redacted"><span class="label">Redacted</span><span class="value" th:text="${summary.redacted()}">0</span></div>
+        <div class="kpi blocked"><span class="label">Blocked</span><span class="value" th:text="${summary.blocked()}">0</span>
+          <span class="sub" th:text="${#numbers.formatPercent(summary.blockedShare(), 1, 1)} + ' of requests'"></span></div>
+        <div class="kpi"><span class="label">Signature feed</span><span class="value small" th:text="${feed.version()}">-</span>
+          <span class="sub" th:text="${feed.count()} + ' signatures, ' + ${feed.origin() == 'bundled' ? 'bundled copy' : 'from feed'}"></span>
+          <span class="sub rejected" th:if="${feed.lastError() != null}" th:text="'last fetch failed: ' + ${feed.lastError()}"></span></div>
+      </div>
+
+      <div class="grid2">
+        <section>
+          <h2>Threats by category</h2>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Category</th><th>OWASP</th><th class="num">Blocked</th><th class="num">Redacted</th><th></th></tr></thead>
+              <tbody>
+              <tr th:each="c : ${categories}">
+                <td th:text="${c.category()}"></td>
+                <td class="mono" th:text="${c.owasp() ?: '-'}"></td>
+                <td class="num" th:text="${c.blocked()}"></td>
+                <td class="num" th:text="${c.redacted()}"></td>
+                <td class="barcell"><span class="hbar block" th:style="'width:' + ${categories[0].total() == 0 ? 0 : c.blocked() * 100 / categories[0].total()} + '%'"></span><span class="hbar redact" th:style="'width:' + ${categories[0].total() == 0 ? 0 : c.redacted() * 100 / categories[0].total()} + '%'"></span></td>
+              </tr>
+              </tbody>
+            </table>
+            <p class="empty" th:if="${categories.isEmpty()}">Nothing blocked or redacted in the last 24 hours.</p>
+          </div>
+        </section>
+        <section>
+          <h2>Latency per pipeline step <span class="hint">last 500 requests, ms</span></h2>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Step</th><th class="num">p50</th><th class="num">p95</th><th class="num">Samples</th></tr></thead>
+              <tbody>
+              <tr th:each="s : ${latency}">
+                <td class="mono" th:text="${s.step()}"></td>
+                <td class="num" th:text="${#numbers.formatDecimal(s.p50Ms(), 1, 2)}"></td>
+                <td class="num" th:text="${#numbers.formatDecimal(s.p95Ms(), 1, 2)}"></td>
+                <td class="num" th:text="${s.samples()}"></td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <div class="grid2">
+        <section>
+          <h2>Top matched rules <span class="hint">24 h</span></h2>
+          <div class="tablewrap">
+            <table>
+              <tbody>
+              <tr th:each="r : ${rules}"><td class="mono" th:text="${r.rule()}"></td><td class="num" th:text="${r.hits()}"></td></tr>
+              </tbody>
+            </table>
+            <p class="empty" th:if="${rules.isEmpty()}">No rule matches yet.</p>
+          </div>
+        </section>
+        <section>
+          <h2>Control plane <span class="hint">policy reloads, feed updates</span></h2>
+          <div class="tablewrap">
+            <table>
+              <tbody>
+              <tr th:each="e : ${controlEvents}">
+                <td class="time" th:text="${#temporals.format(e.timestamp(), 'HH:mm:ss')}"></td>
+                <td class="mono" th:text="${e.eventType()}"></td>
+                <td><span class="pill" th:classappend="${e.decision()}" th:text="${e.decision()}"></span></td>
+                <td class="excerpt" th:text="${e.detail() ?: ''}"></td>
+              </tr>
+              </tbody>
+            </table>
+            <p class="empty" th:if="${controlEvents.isEmpty()}">No policy edits or feed updates since start.</p>
+          </div>
+        </section>
+      </div>
+
+      <section>
+        <h2>Recent events
+          <span class="filters">
+            <a href="/dashboard/security" th:classappend="${decisionFilter == null} ? 'active'">All</a>
+            <a href="/dashboard/security?decision=BLOCK" th:classappend="${decisionFilter == 'BLOCK'} ? 'active'">Blocked</a>
+            <a href="/dashboard/security?decision=REDACT" th:classappend="${decisionFilter == 'REDACT'} ? 'active'">Redacted</a>
+          </span>
+        </h2>
+        <div class="tablewrap">
+          <table>
+            <thead>
+            <tr><th>Time</th><th>Client</th><th>Model</th><th>Decision</th><th>Category</th><th>OWASP</th><th>Rules</th><th>Excerpt (masked) / reason</th><th class="num">Status</th><th class="num">ms</th></tr>
+            </thead>
+            <tbody>
+            <tr th:each="e : ${events}">
+              <td class="time" th:text="${#temporals.format(e.timestamp(), 'HH:mm:ss')}"></td>
+              <td class="mono" th:text="${e.eventType() == 'chat' ? (e.clientId() ?: '-') : e.eventType()}"></td>
+              <td class="mono" th:text="${e.model() ?: ''}"></td>
+              <td><span class="pill" th:classappend="${e.decision()}" th:text="${e.decision()}"></span></td>
+              <td th:text="${e.category() ?: ''}"></td>
+              <td class="mono" th:text="${e.owasp() ?: ''}"></td>
+              <td class="mono rules" th:text="${e.rules() ?: ''}"></td>
+              <td class="excerpt"><span th:text="${e.excerpt() ?: ''}"></span><span class="reason" th:if="${e.detail() != null}" th:text="${e.detail()}"></span></td>
+              <td class="num" th:text="${e.httpStatus() ?: ''}"></td>
+              <td class="num" th:text="${e.latencyMs() == null ? '' : #numbers.formatDecimal(e.latencyMs(), 1, 1)}"></td>
+            </tr>
+            </tbody>
+          </table>
+          <p class="empty" th:if="${events.isEmpty()}">No requests yet. Try the Playground, or send one to /v1/chat/completions with a demo key from the README.</p>
+        </div>
+      </section>
+    </th:block>
+  </div>
+
+  <section>
+    <h2>Decisions over time <span class="hint">last 2 hours, 5-minute buckets</span></h2>
+    <div class="chartbox"><canvas id="timeline" role="img" aria-label="Stacked bars of allowed, redacted and blocked requests per 5 minutes"></canvas></div>
+  </section>
+</main>
+<script src="/vendor/chart-4.4.7.umd.min.js"></script>
+<script src="/charts.js"></script>
+<script>AIGateCharts.decisions('timeline');</script>
+</body>
+</html>

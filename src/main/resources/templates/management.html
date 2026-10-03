@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('AIGate Management', 'AI usage, cost and budget consumption per client and model.')}"></head>
+<body>
+<header th:replace="~{fragments :: bar}"></header>
+<main>
+  <div class="live" hx-get="/dashboard/management/live" hx-trigger="every 3s" hx-swap="innerHTML">
+    <th:block th:fragment="live">
+      <div th:replace="~{fragments :: policyline}"></div>
+      <div class="kpis">
+        <div class="kpi"><span class="label">Requests, 24 h</span><span class="value" th:text="${summary.total()}">0</span></div>
+        <div class="kpi"><span class="label">Tokens, 24 h</span><span class="value" th:text="${#numbers.formatInteger(summary.tokens(), 1, 'COMMA')}">0</span></div>
+        <div class="kpi"><span class="label">Cost, 24 h, USD</span><span class="value" th:text="${#numbers.formatDecimal(summary.costUsd(), 1, 'COMMA', 4, 'POINT')}">0</span></div>
+        <div class="kpi blocked"><span class="label">Blocked</span><span class="value" th:text="${summary.blocked()}">0</span>
+          <span class="sub" th:text="${#numbers.formatPercent(summary.blockedShare(), 1, 1)} + ' of requests'"></span></div>
+      </div>
+
+      <section>
+        <h2>Budget consumption <span class="hint">current window per client, limits from policy.yaml</span></h2>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Client</th><th>Profile</th><th>Window</th><th>Tokens</th><th>Cost, USD</th><th>Model time, s</th><th class="num">Requests</th></tr></thead>
+            <tbody>
+            <tr th:each="b : ${budgets}">
+              <td class="mono" th:text="${b.clientId()}"></td>
+              <td th:text="${b.profile()}"></td>
+              <td class="mono" th:text="${b.window()}"></td>
+              <td class="meter"><span class="meterbar"><span th:style="'width:' + ${b.tokenShare() * 100} + '%'" th:classappend="${b.tokenShare() >= 1 ? 'full' : (b.tokenShare() >= 0.8 ? 'high' : '')}"></span></span>
+                <span class="mtext" th:text="${b.tokensUsed()} + ' / ' + ${b.maxTokens() ?: 'no limit'}"></span></td>
+              <td class="meter"><span class="meterbar"><span th:style="'width:' + ${b.costShare() * 100} + '%'" th:classappend="${b.costShare() >= 1 ? 'full' : (b.costShare() >= 0.8 ? 'high' : '')}"></span></span>
+                <span class="mtext" th:text="${#numbers.formatDecimal(b.costUsed(), 1, 6)} + ' / ' + ${b.maxCost() ?: 'no limit'}"></span></td>
+              <td class="meter"><span class="meterbar"><span th:style="'width:' + ${b.timeShare() * 100} + '%'" th:classappend="${b.timeShare() >= 1 ? 'full' : (b.timeShare() >= 0.8 ? 'high' : '')}"></span></span>
+                <span class="mtext" th:text="${#numbers.formatDecimal(b.secondsUsed(), 1, 1)} + ' / ' + ${b.maxSeconds() ?: 'no limit'}"></span></td>
+              <td class="num" th:text="${b.requests()}"></td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <div class="grid2">
+        <section>
+          <h2>Usage by client <span class="hint">24 h</span></h2>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Client</th><th class="num">Requests</th><th class="num">Blocked</th><th class="num">Redacted</th><th class="num">Tokens</th><th class="num">Cost, USD</th></tr></thead>
+              <tbody>
+              <tr th:each="c : ${clients}">
+                <td class="mono" th:text="${c.clientId()}"></td>
+                <td class="num" th:text="${c.requests()}"></td>
+                <td class="num" th:text="${c.blocked()}"></td>
+                <td class="num" th:text="${c.redacted()}"></td>
+                <td class="num" th:text="${#numbers.formatInteger(c.tokens(), 1, 'COMMA')}"></td>
+                <td class="num" th:text="${#numbers.formatDecimal(c.costUsd(), 1, 6)}"></td>
+              </tr>
+              </tbody>
+            </table>
+            <p class="empty" th:if="${clients.isEmpty()}">No authenticated requests yet.</p>
+          </div>
+        </section>
+        <section>
+          <h2>Usage by model <span class="hint">24 h</span></h2>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Model</th><th>Kind</th><th class="num">Requests</th><th class="num">Tokens</th><th class="num">Cost, USD</th></tr></thead>
+              <tbody>
+              <tr th:each="m : ${models}">
+                <td class="mono" th:text="${m.model()}"></td>
+                <td th:text="${modelKinds[m.model()] ?: '-'}"></td>
+                <td class="num" th:text="${m.requests()}"></td>
+                <td class="num" th:text="${#numbers.formatInteger(m.tokens(), 1, 'COMMA')}"></td>
+                <td class="num" th:text="${#numbers.formatDecimal(m.costUsd(), 1, 6)}"></td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </th:block>
+  </div>
+
+  <section>
+    <h2>Tokens over time <span class="hint">last 2 hours, 5-minute buckets</span></h2>
+    <div class="chartbox"><canvas id="tokens" role="img" aria-label="Line of tokens consumed per 5 minutes"></canvas></div>
+  </section>
+</main>
+<script src="/vendor/chart-4.4.7.umd.min.js"></script>
+<script src="/charts.js"></script>
+<script>AIGateCharts.tokens('tokens');</script>
+</body>
+</html>

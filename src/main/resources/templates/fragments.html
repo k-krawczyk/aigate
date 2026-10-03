@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(title, description)">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title th:text="${title}">AIGate</title>
+  <meta name="description" th:content="${description}">
+  <link rel="stylesheet" href="/dashboard.css">
+  <script src="/vendor/htmx-2.0.4.min.js" defer></script>
+</head>
+<body>
+<header class="bar" th:fragment="bar">
+  <h1>AIGate</h1>
+  <nav class="views">
+    <a href="/dashboard/security" th:classappend="${view == 'security'} ? 'active'">Security</a>
+    <a href="/dashboard/management" th:classappend="${view == 'management'} ? 'active'">Management</a>
+    <a href="/dashboard/playground" th:classappend="${view == 'playground'} ? 'active'">Playground</a>
+  </nav>
+  <nav class="tools">
+    <a href="/audit/export?format=jsonl">Export JSONL</a>
+    <a href="/audit/export?format=csv">Export CSV</a>
+    <a href="/actuator/prometheus">Prometheus</a>
+  </nav>
+</header>
+<div th:fragment="policyline" class="policy">
+  Policy revision <b th:text="${policy.revision()}">1</b>, loaded
+  <span th:text="${#temporals.format(policy.loadedAt(), 'HH:mm:ss')}">12:00:00</span>.
+  <span th:if="${!lastReload.applied()}" class="rejected">
+    Last edit rejected at <span th:text="${#temporals.format(lastReload.at(), 'HH:mm:ss')}"></span>, previous policy still active:
+    <span th:text="${#strings.listJoin(lastReload.errors(), '; ')}"></span>
+  </span>
+</div>
+</body>
+</html>

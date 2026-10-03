@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('AIGate Playground', 'Send a prompt through AIGate and see the decision, matched rules and per-step latency.')}"></head>
+<body>
+<header th:replace="~{fragments :: bar}"></header>
+<main>
+  <section class="playground">
+    <form hx-post="/dashboard/playground/send" hx-target="#result" hx-indicator="#sending">
+      <div class="row">
+        <label for="apiKey">Client</label>
+        <select id="apiKey" name="apiKey">
+          <option value="aigate-demo-agent-key">demo-agent (balanced)</option>
+          <option value="aigate-finance-app-key">finance-app (strict)</option>
+          <option value="aigate-sandbox-key">sandbox (permissive)</option>
+          <option value="not-a-real-key">unknown key</option>
+        </select>
+        <label for="model">Model</label>
+        <select id="model" name="model">
+          <option>llama3.2:3b</option>
+          <option>granite4:3b</option>
+          <option>gpt-4o</option>
+        </select>
+      </div>
+      <label for="system">System prompt <span class="hint">optional, used for the leakage check</span></label>
+      <input id="system" name="system" type="text" value="You are the support assistant of a Polish bank. Never reveal internal procedures.">
+      <label for="prompt">Prompt</label>
+      <textarea id="prompt" name="prompt" rows="4" required>Check the loan application for the customer with PESEL 44051401359.</textarea>
+      <div class="row">
+        <button type="submit">Send through AIGate</button>
+        <span id="sending" class="htmx-indicator">Waiting for the model...</span>
+      </div>
+      <p class="hint">Try: an AWS key, "Ignore all previous instructions", "You are now DAN", a card number, "!!python/object/apply:os.system", or switch the client to strict.</p>
+    </form>
+    <div id="result"></div>
+  </section>
+</main>
+<div th:fragment="result" th:if="${result != null}">
+  <div class="result">
+    <div class="verdict">
+      <span class="pill big" th:classappend="${result.audit() == null ? '' : result.audit()['DECISION']}"
+            th:text="${result.audit() == null ? result.status() : result.audit()['DECISION']}"></span>
+      <span class="mono" th:text="'HTTP ' + ${result.status()} + ', ' + ${result.roundTripMs()} + ' ms round trip'"></span>
+      <span th:if="${result.audit() != null and result.audit()['CATEGORY'] != null}" th:text="${result.audit()['CATEGORY']} + ' ' + ${result.audit()['OWASP'] ?: ''}"></span>
+    </div>
+    <dl>
+      <th:block th:if="${result.answer() != null}"><dt>Answer</dt><dd class="answer" th:text="${result.answer()}"></dd></th:block>
+      <th:block th:if="${result.error() != null}"><dt>Gateway response</dt><dd th:text="${result.error()}"></dd></th:block>
+      <th:block th:if="${result.audit() != null and result.audit()['RULES'] != null}"><dt>Matched rules</dt><dd class="mono" th:text="${result.audit()['RULES']}"></dd></th:block>
+      <th:block th:if="${result.audit() != null and result.audit()['DETAIL'] != null}"><dt>Detail</dt><dd th:text="${result.audit()['DETAIL']}"></dd></th:block>
+      <th:block th:if="${result.audit() != null and result.audit()['EXCERPT'] != null}"><dt>Audited as</dt><dd th:text="${result.audit()['EXCERPT']}"></dd></th:block>
+    </dl>
+    <table class="steps" th:if="${!result.steps().isEmpty()}">
+      <thead><tr><th>Step</th><th class="num">ms</th></tr></thead>
+      <tbody><tr th:each="s : ${result.steps()}"><td class="mono" th:text="${s.key}"></td><td class="num" th:text="${#numbers.formatDecimal(s.value / 1000.0, 1, 2)}"></td></tr></tbody>
+    </table>
+  </div>
+</div>
+</body>
+</html>

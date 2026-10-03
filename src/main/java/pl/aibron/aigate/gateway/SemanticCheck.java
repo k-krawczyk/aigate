@@ -48,7 +48,7 @@ public class SemanticCheck {
         note(exchange, risk.signals().isEmpty() ? null : "risk " + format(risk.score()) + " [" + signals + "]");
 
         if (risk.score() >= profile.risk().blockAbove() && risk.score() > 0) {
-            block(exchange, INJECTION, "LLM01", "risk " + signals,
+            block(exchange, INJECTION, "LLM01", signals,
                     "Request blocked: prompt injection indicators (risk " + format(risk.score()) + ")");
         }
         boolean unsure = risk.score() >= profile.risk().unsureAbove() && risk.score() > 0;

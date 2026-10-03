@@ -41,6 +41,45 @@ class DashboardAndExportTest extends GatewayTestSupport {
         assertThat(csv.body()).doesNotContain("1090 1014");
     }
 
+    @Test
+    @DisplayName("management view shows budget consumption per client from the policy")
+    void management() throws Exception {
+        chat(DEMO_AGENT_KEY, "llama3.2:3b", "hello from management test");
+        Thread.sleep(300);
+
+        var page = get("/dashboard/management");
+
+        assertThat(page.statusCode()).isEqualTo(200);
+        assertThat(page.body()).contains("Budget consumption", "demo-agent", "finance-app", "Usage by model");
+    }
+
+    @Test
+    @DisplayName("playground sends through the public endpoint and shows the audited decision")
+    void playground() throws Exception {
+        var response = HttpClient.newHttpClient().send(
+                HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/dashboard/playground/send"))
+                        .header("Content-Type", "application/x-www-form-urlencoded")
+                        .POST(HttpRequest.BodyPublishers.ofString(
+                                "apiKey=aigate-finance-app-key&model=llama3.2%3A3b&prompt=client+44051401359"))
+                        .build(),
+                HttpResponse.BodyHandlers.ofString());
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.body()).contains("BLOCK", "sensitive_data", "pii.pesel").doesNotContain("44051401359");
+    }
+
+    @Test
+    @DisplayName("telemetry: per-step latency timers are exposed on /actuator/prometheus")
+    void prometheus() throws Exception {
+        chat(DEMO_AGENT_KEY, "llama3.2:3b", "hello from telemetry test");
+        Thread.sleep(300);
+
+        var metrics = get("/actuator/prometheus");
+
+        assertThat(metrics.statusCode()).isEqualTo(200);
+        assertThat(metrics.body()).contains("aigate_step_latency_seconds", "step=\"request_rules\"", "aigate_requests_total");
+    }
+
     private HttpResponse<String> get(String path) throws Exception {
         return HttpClient.newHttpClient().send(
                 HttpRequest.newBuilder(URI.create("http://localhost:" + port + path)).build(),
