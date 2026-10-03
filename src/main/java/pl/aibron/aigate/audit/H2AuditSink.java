@@ -32,11 +32,20 @@ public class H2AuditSink implements AuditSink {
                     caller_groups)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                e.id(), Timestamp.from(e.timestamp()), e.eventType(), e.clientId(), e.subject(), e.onBehalfOf(),
-                e.authMethod(), e.model(), e.direction(), e.decision(), e.category(), e.owasp(), e.rules(),
-                e.excerpt(), e.httpStatus(), e.promptTokens(), e.completionTokens(), e.costUsd(), e.latencyMs(),
-                toJson(e), e.policyRevision(), e.detail(), e.profile(),
-                e.groups() == null ? null : String.join(",", e.groups()));
+                e.id(), Timestamp.from(e.timestamp()), cap(e.eventType(), 32), cap(e.clientId(), 256),
+                cap(e.subject(), 256), cap(e.onBehalfOf(), 256), cap(e.authMethod(), 160), cap(e.model(), 128),
+                cap(e.direction(), 16), cap(e.decision(), 16), cap(e.category(), 64), cap(e.owasp(), 16),
+                cap(e.rules(), 2048), cap(e.excerpt(), 1024), e.httpStatus(), e.promptTokens(), e.completionTokens(),
+                e.costUsd(), e.latencyMs(), cap(toJson(e), 2048), e.policyRevision(), cap(e.detail(), 4096),
+                cap(e.profile(), 256), cap(e.groups() == null ? null : String.join(",", e.groups()), 4096));
+    }
+
+    /**
+     * Fits a value to its column. Losing the end of a long value is better than losing the whole event, which is
+     * what H2 does with a value that is too long.
+     */
+    static String cap(String value, int width) {
+        return value == null || value.length() <= width ? value : value.substring(0, width - 3) + "...";
     }
 
     private static String toJson(AuditEvent e) {
