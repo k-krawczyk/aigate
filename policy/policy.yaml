@@ -98,7 +98,9 @@ audit:
 # Corporate identity provider (OIDC). Access tokens are accepted next to API keys: signature checked against the
 # provider's JWKS, plus iss, aud and exp. client_claim names the policy client (the agent or app), user_claim the
 # person it acts for (recorded in the audit as on_behalf_of). A group can tighten the client's profile, never
-# loosen it. Uncomment and point at your IdP, e.g. Entra ID:
+# loosen it. service_account_pattern marks user-claim values that are service accounts, not people (Keycloak
+# client credentials: "^service-account-"); leave it out for Entra ID, whose app tokens have no user claim.
+# Uncomment and point at your IdP, e.g. Entra ID:
 #   issuer: https://login.microsoftonline.com/<tenant-id>/v2.0
 #   jwks_uri: https://login.microsoftonline.com/<tenant-id>/discovery/v2.0/keys
 # identity:
@@ -109,6 +111,7 @@ audit:
 #       client_claim: azp
 #       user_claim: preferred_username
 #       groups_claim: groups
+#       service_account_pattern: "^service-account-"
 #       group_profiles:
 #         ai-finance: strict
 

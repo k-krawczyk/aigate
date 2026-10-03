@@ -208,6 +208,8 @@ identity:
       group_profiles: { ai-finance: strict, ai-devs: balanced }
 ```
 
+Keycloak client-credentials tokens carry `preferred_username: service-account-<client>`; `service_account_pattern: "^service-account-"` keeps such values out of `onBehalfOf`. Entra ID app tokens have no user claim, so the setting has no default.
+
 `onBehalfOf` matters for agents: when an agent acts for a user, the audit trail records both, the agent (`azp`) and the human (`sub`). That is the "agents impersonating other actors" risk from the brief.
 
 ### SIEM

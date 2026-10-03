@@ -105,9 +105,9 @@ public class OidcJwtResolver implements IdentityResolver {
         if (rawGroups instanceof List<?> list) {
             list.forEach(g -> groups.add(String.valueOf(g)));
         }
-        var identity = new CallerIdentity(clientId, claims.getSubject(),
-                user != null && !user.equals(clientId) ? user : null, groups, "oidc:" + provider.name(),
-                strictestProfile(provider, groups, policy));
+        boolean person = user != null && !user.equals(clientId) && !provider.isServiceAccount(user);
+        var identity = new CallerIdentity(clientId, claims.getSubject(), person ? user : null, groups,
+                "oidc:" + provider.name(), strictestProfile(provider, groups, policy));
         if (clientId == null || policy.client(clientId).isEmpty()) {
             // A real corporate identity using an agent nobody onboarded: the most useful signal for the SOC.
             return Resolution.rejectedVerified("auth.client_not_onboarded",

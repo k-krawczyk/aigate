@@ -136,6 +136,13 @@ public final class PolicyLoader {
             if (provider.audience() == null || provider.audience().isBlank()) {
                 errors.add(path + ".audience: required, tokens for other audiences must be refused");
             }
+            if (provider.serviceAccountPattern() != null) {
+                try {
+                    Pattern.compile(provider.serviceAccountPattern());
+                } catch (PatternSyntaxException e) {
+                    errors.add(path + ".service_account_pattern: invalid regex");
+                }
+            }
             provider.groupProfiles().forEach((group, profile) -> {
                 if (!policy.profiles().containsKey(profile)) {
                     errors.add(path + ".group_profiles." + group + ": unknown profile '" + profile + "'");

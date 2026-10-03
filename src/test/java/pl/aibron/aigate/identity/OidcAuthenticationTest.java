@@ -81,6 +81,7 @@ class OidcAuthenticationTest extends GatewayTestSupport {
                       client_claim: azp
                       user_claim: preferred_username
                       groups_claim: groups
+                      service_account_pattern: "^service-account-"
                       group_profiles:
                         ai-finance: strict
                         ai-interns: permissive
@@ -130,6 +131,18 @@ class OidcAuthenticationTest extends GatewayTestSupport {
         var row = awaitRow(id);
         assertThat(row).containsEntry("CLIENT_ID", "demo-agent").containsEntry("ON_BEHALF_OF", "jan.kowalski")
                 .containsEntry("AUTH_METHOD", "oidc:corporate");
+    }
+
+    @Test
+    @DisplayName("service account: an agent acting for itself is not recorded as a person")
+    void serviceAccount() throws Exception {
+        var response = chat(sign(claims().claim("preferred_username", "service-account-demo-agent").build()),
+                "llama3.2:3b", "hello from a service account");
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(awaitRow(response.headers().firstValue("X-AIGate-Request-Id").orElseThrow()))
+                .containsEntry("CLIENT_ID", "demo-agent").containsEntry("ON_BEHALF_OF", null)
+                .containsEntry("SUBJECT", "f3a1c2d4");
     }
 
     @Test
