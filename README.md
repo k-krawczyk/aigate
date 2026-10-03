@@ -58,7 +58,13 @@ Edit it while the gateway runs. A valid change applies to the next request, typi
 | Gateway port | `8080` | `SERVER_PORT` |
 | Policy directory | `policy` | `AIGATE_POLICY_DIR` |
 
-Metrics: `GET /actuator/metrics`, `GET /actuator/health`.
+## Dashboard and audit
+
+- `http://localhost:8080/dashboard`: live view, refreshed every 3 seconds. Requests in the last hour by decision, tokens, cost, policy revision and reload errors, and the latest events with category, OWASP id, matched rules and masked excerpt.
+- `GET /audit/export?format=jsonl` or `?format=csv`, optional `&hours=24`: audit export for security teams.
+- `GET /actuator/metrics`, `GET /actuator/health`: telemetry.
+
+The audit store is H2 in `./data/` (`AIGATE_DB_URL` to change it). It only ever contains masked text.
 
 ## Scope notes
 
